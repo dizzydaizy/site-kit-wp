@@ -64,6 +64,13 @@ export default function UserInputSelectOptions( { slug, options, max } ) {
 		];
 
 		setOther( target.value );
+
+		// @TODO see the IB in https://github.com/google/site-kit-wp/issues/2828
+		// for the right approach to do this.
+		const otherCheckBox = document.getElementById( 'goals-other' );
+		if ( ! otherCheckBox.checked ) {
+			otherCheckBox.click();
+		}
 		setUserInputSetting( slug, newValues.slice( 0, max ) );
 	}, dependencies );
 
@@ -118,6 +125,7 @@ export default function UserInputSelectOptions( { slug, options, max } ) {
 							id={ `${ slug }-select-options` }
 							value={ other }
 							onChange={ onOtherChange }
+							disabled={ max > 1 && values.length >= max && ! values.includes( other ) }
 						/>
 					</TextField>
 				</div>
