@@ -21,12 +21,17 @@
  */
 import SurveyCompletion from './SurveyCompletion';
 
-const Template = ( args ) => <SurveyCompletion { ...args } />;
+const Template = ( args ) => (
+	<div className="googlesitekit-survey">
+		<SurveyCompletion { ...args } />
+	</div>
+);
 
 export const SurveyCompletionReviewStory = Template.bind( {} );
 SurveyCompletionReviewStory.storyName = 'SurveyCompletion: Review';
 SurveyCompletionReviewStory.args = {
-	children: 'We’re glad Site Kit is helpful for you! To help others discover it too, take a moment to share your opinion as a review.',
+	children:
+		'We’re glad Site Kit is helpful for you! To help others discover it too, take a moment to share your opinion as a review.',
 	title: 'Thanks for sharing your thoughts!',
 	ctaText: 'Let’s go',
 	ctaURL: 'https://sitekit.withgoogle.com/',
@@ -41,7 +46,8 @@ SurveyCompletionReviewStory.args = {
 export const SurveyCompletionForumStory = Template.bind( {} );
 SurveyCompletionForumStory.storyName = 'SurveyCompletion: Forum';
 SurveyCompletionForumStory.args = {
-	children: 'Do you need help with anything? We’re happy to answer your questions in the forum.',
+	children:
+		'Do you need help with anything? We’re happy to answer your questions in the forum.',
 	title: 'Thanks for sharing your thoughts!',
 	ctaText: 'Get help',
 	ctaURL: 'https://sitekit.withgoogle.com/',
@@ -55,11 +61,4 @@ SurveyCompletionForumStory.args = {
 
 export default {
 	title: 'Components/Surveys',
-	decorators: [
-		( Story ) => (
-			<div className="googlesitekit-survey">
-				<Story />
-			</div>
-		),
-	],
 };

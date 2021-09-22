@@ -25,7 +25,11 @@
  * @return {string} The URL path.
  */
 export function getURLPath( url ) {
-	return new URL( url ).pathname;
+	try {
+		return new URL( url ).pathname;
+	} catch {}
+
+	return null;
 }
 
 /**
@@ -38,7 +42,14 @@ export function getURLPath( url ) {
  * @return {string} The URL path.
  */
 export function getFullURL( siteURL, path ) {
-	return new URL( path, siteURL ).href;
+	try {
+		return new URL( path, siteURL ).href;
+	} catch {}
+
+	return (
+		( typeof siteURL === 'string' ? siteURL : '' ) +
+		( typeof path === 'string' ? path : '' )
+	);
 }
 
 /**
@@ -50,7 +61,15 @@ export function getFullURL( siteURL, path ) {
  * @return {string} Normalized URL.
  */
 export function normalizeURL( incomingURL ) {
-	return incomingURL
-		.replace( /^https?:\/\/(www\.)?/i, '' ) // Remove protocol and optional "www." prefix from the URL.
-		.replace( /\/$/, '' ); // Remove trailing slash.
+	if ( typeof incomingURL !== 'string' ) {
+		return incomingURL;
+	}
+
+	return (
+		incomingURL
+			// Remove protocol and optional "www." prefix from the URL.
+			.replace( /^https?:\/\/(www\.)?/i, '' )
+			// Remove trailing slash.
+			.replace( /\/$/, '' )
+	);
 }

@@ -21,12 +21,17 @@
  */
 import SurveyQuestionRating from './SurveyQuestionRating';
 
-const Template = ( args ) => <SurveyQuestionRating { ...args } />;
+const Template = ( args ) => (
+	<div className="googlesitekit-survey">
+		<SurveyQuestionRating { ...args } />
+	</div>
+);
 
 export const SurveyQuestionRatingStory = Template.bind( {} );
 SurveyQuestionRatingStory.storyName = 'SurveyQuestionRating';
 SurveyQuestionRatingStory.args = {
-	question: 'Based on your experience so far, how satisfied are you with Site Kit?',
+	question:
+		'Based on your experience so far, how satisfied are you with Site Kit?',
 	choices: [
 		{
 			answer_ordinal: 1,
@@ -59,11 +64,4 @@ SurveyQuestionRatingStory.args = {
 
 export default {
 	title: 'Components/Surveys',
-	decorators: [
-		( Story ) => (
-			<div className="googlesitekit-survey">
-				<Story />
-			</div>
-		),
-	],
 };

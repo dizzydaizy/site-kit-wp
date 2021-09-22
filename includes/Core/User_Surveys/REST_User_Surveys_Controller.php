@@ -18,7 +18,7 @@ use WP_REST_Server;
 /**
  * Class for handling user survey rest routes.
  *
- * @since n.e.x.t
+ * @since 1.35.0
  * @access private
  * @ignore
  */
@@ -27,7 +27,7 @@ class REST_User_Surveys_Controller {
 	/**
 	 * Authentication instance.
 	 *
-	 * @since n.e.x.t
+	 * @since 1.35.0
 	 * @var Authentication
 	 */
 	protected $authentication;
@@ -35,7 +35,7 @@ class REST_User_Surveys_Controller {
 	/**
 	 * Constructor.
 	 *
-	 * @since n.e.x.t
+	 * @since 1.35.0
 	 *
 	 * @param Authentication $authentication Authentication instance.
 	 */
@@ -46,7 +46,7 @@ class REST_User_Surveys_Controller {
 	/**
 	 * Registers functionality through WordPress hooks.
 	 *
-	 * @since n.e.x.t
+	 * @since 1.35.0
 	 */
 	public function register() {
 		add_filter(
@@ -61,7 +61,7 @@ class REST_User_Surveys_Controller {
 	/**
 	 * Gets REST route instances.
 	 *
-	 * @since n.e.x.t
+	 * @since 1.35.0
 	 *
 	 * @return REST_Route[] List of REST_Route objects.
 	 */
@@ -77,12 +77,12 @@ class REST_User_Surveys_Controller {
 				array(
 					'methods'             => WP_REST_Server::CREATABLE,
 					'callback'            => function ( WP_REST_Request $request ) {
-						$proxy = $this->authentication->get_google_proxy();
-						$creds = $this->authentication->credentials();
-						$token = $this->authentication->get_oauth_client()->get_access_token();
-						$data  = $request->get_param( 'data' );
+						$proxy        = $this->authentication->get_google_proxy();
+						$creds        = $this->authentication->credentials();
+						$access_token = (string) $this->authentication->get_oauth_client()->get_access_token();
+						$data         = $request->get_param( 'data' );
 
-						$response = $proxy->send_survey_trigger( $creds, $token, $data['triggerID'] );
+						$response = $proxy->send_survey_trigger( $creds, $access_token, $data['triggerID'] );
 						$response = rest_ensure_response( $response );
 
 						return $response;
@@ -107,12 +107,12 @@ class REST_User_Surveys_Controller {
 				array(
 					'methods'             => WP_REST_Server::CREATABLE,
 					'callback'            => function ( WP_REST_Request $request ) {
-						$proxy = $this->authentication->get_google_proxy();
-						$creds = $this->authentication->credentials();
-						$token = $this->authentication->get_oauth_client()->get_access_token();
-						$data  = $request->get_param( 'data' );
+						$proxy        = $this->authentication->get_google_proxy();
+						$creds        = $this->authentication->credentials();
+						$access_token = (string) $this->authentication->get_oauth_client()->get_access_token();
+						$data         = $request->get_param( 'data' );
 
-						$response = $proxy->send_survey_event( $creds, $token, $data['session'], $data['event'] );
+						$response = $proxy->send_survey_event( $creds, $access_token, $data['session'], $data['event'] );
 						$response = rest_ensure_response( $response );
 
 						return $response;

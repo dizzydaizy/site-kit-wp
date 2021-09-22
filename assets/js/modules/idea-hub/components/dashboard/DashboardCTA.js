@@ -17,88 +17,160 @@
  */
 
 /**
+ * External dependencies
+ */
+import PropTypes from 'prop-types';
+import { useInView } from 'react-intersection-observer';
+
+/**
  * WordPress dependencies
  */
-import { useCallback } from '@wordpress/element';
+import {
+	useCallback,
+	useEffect,
+	createInterpolateElement,
+} from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
 import Data from 'googlesitekit-data';
-import {
-	showErrorNotification,
-} from '../../../../util';
-import GenericError from '../../../../components/legacy-notifications/generic-error';
+import { CORE_SITE } from '../../../../googlesitekit/datastore/site/constants';
 import { CORE_MODULES } from '../../../../googlesitekit/modules/datastore/constants';
 import { CORE_LOCATION } from '../../../../googlesitekit/datastore/location/constants';
+import { CORE_USER } from '../../../../googlesitekit/datastore/user/constants';
+import { IDEA_HUB_GA_CATEGORY_WIDGET } from '../../datastore/constants';
 import Button from '../../../../components/Button';
 import Link from '../../../../components/Link';
 import IdeaHubIcon from '../../../../../svg/idea-hub.svg';
-import BulbIcon from '../../../../../svg/bulb.svg';
+import CloseIcon from '../../../../../svg/close.svg';
+import { trackEvent } from '../../../../util';
 const { useSelect, useDispatch } = Data;
 
-function DashboardCTA( { Widget } ) {
-	const { connected, active } = useSelect( ( select ) => select( CORE_MODULES ).getModule( 'idea-hub' ) );
+const DISMISS_ITEM_IDEA_HUB_CTA = 'idea-hub-cta';
+
+export default function DashboardCTA( { Widget, WidgetNull } ) {
+	const { connected, active } = useSelect( ( select ) =>
+		select( CORE_MODULES ).getModule( 'idea-hub' )
+	);
+
+	const dismissed = useSelect( ( select ) =>
+		select( CORE_USER ).isItemDismissed( DISMISS_ITEM_IDEA_HUB_CTA )
+	);
+
+	const [ trackingRef, inView ] = useInView( {
+		triggerOnce: true,
+		threshold: 0.25,
+	} );
+
+	useEffect( () => {
+		if ( inView ) {
+			trackEvent( IDEA_HUB_GA_CATEGORY_WIDGET, 'prompt_widget_view' );
+		}
+	}, [ inView ] );
+
 	const { activateModule } = useDispatch( CORE_MODULES );
 	const { navigateTo } = useDispatch( CORE_LOCATION );
+	const { setInternalServerError } = useDispatch( CORE_SITE );
+	const { dismissItem } = useDispatch( CORE_USER );
 
-	const onClick = useCallback( async () => {
+	const onSetupButtonClick = useCallback( async () => {
 		const { error, response } = await activateModule( 'idea-hub' );
 
 		if ( ! error ) {
+			await trackEvent(
+				IDEA_HUB_GA_CATEGORY_WIDGET,
+				'prompt_widget_setup'
+			);
+
 			navigateTo( response.moduleReauthURL );
 		} else {
-			showErrorNotification( GenericError, {
+			setInternalServerError( {
 				id: 'idea-hub-setup-error',
-				title: __( 'Internal Server Error', 'google-site-kit' ),
 				description: error.message,
-				format: 'small',
-				type: 'win-error',
 			} );
 		}
-	}, [ activateModule, navigateTo ] );
+	}, [ activateModule, navigateTo, setInternalServerError ] );
+
+	const onLearnMoreLinkClick = useCallback( () => {
+		trackEvent(
+			IDEA_HUB_GA_CATEGORY_WIDGET,
+			'click_outgoing_link',
+			'idea_hub_learn_more'
+		);
+	}, [] );
+
+	const onDismissButtonClick = useCallback( async () => {
+		await dismissItem( DISMISS_ITEM_IDEA_HUB_CTA );
+
+		await trackEvent(
+			IDEA_HUB_GA_CATEGORY_WIDGET,
+			'prompt_widget_dismiss'
+		);
+	}, [ dismissItem ] );
+
+	// Don't render this component if it has been dismissed or dismissed items aren't loaded yet.
+	if ( dismissed || dismissed === undefined ) {
+		return <WidgetNull />;
+	}
 
 	return (
 		<Widget>
-			<div className="googlesitekit-idea-hub__dashboard-cta">
+			<div
+				className="googlesitekit-idea-hub__dashboard-cta"
+				ref={ trackingRef }
+			>
 				<div className="googlesitekit-idea-hub__dashboard-cta__icon">
 					<IdeaHubIcon height="144" width="144" />
 				</div>
 
 				<div className="googlesitekit-idea-hub__dashboard-cta__content">
 					<h5>
-						{ __( 'Get new topics based on what people are searching for with Idea Hub', 'google-site-kit' ) }
+						{ __(
+							'Get new topics to write about',
+							'google-site-kit'
+						) }
 					</h5>
+
 					<p className="googlesitekit-idea-hub__dashboard-cta__learnmore-copy">
-						<BulbIcon
-							width="16"
-							height="16"
-						/>
-						&nbsp;
-						<Link
-							className="googlesitekit-idea-hub__dashboard-cta__learnmore"
-							href="https://sitekit.withgoogle.com/documentation/idea-hub-module/"
-							external
-							inherit
-							hideExternalIndicator
-						>
-							{ __( 'Learn more', 'google-site-kit' ) }
-						</Link>
+						{ createInterpolateElement(
+							__(
+								'Idea Hub is an experimental new feature that shows you suggestions to write about based on the content of your site. <a>Learn more</a>',
+								'google-site-kit'
+							),
+							{
+								a: (
+									<Link
+										className="googlesitekit-idea-hub__dashboard-cta__learnmore"
+										href="https://sitekit.withgoogle.com/documentation/idea-hub-module/"
+										external
+										inherit
+										onClick={ onLearnMoreLinkClick }
+									/>
+								),
+							}
+						) }
 					</p>
 
-					<Button className="googlesitekit-idea-hub__dashboard-cta__setup" onClick={ onClick }>
-						{
-							active && ! connected
-								? __( 'Complete set up', 'google-site-kit' )
-								: __( 'Set up', 'google-site-kit' )
-						}
+					<Button onClick={ onSetupButtonClick }>
+						{ active && ! connected
+							? __( 'Complete set up', 'google-site-kit' )
+							: __( 'Set up', 'google-site-kit' ) }
 					</Button>
-
 				</div>
+
+				<Button
+					className="googlesitekit-idea-hub__dashboard-cta__close-button"
+					icon={ <CloseIcon width="14" height="14" /> }
+					text
+					onClick={ onDismissButtonClick }
+				/>
 			</div>
 		</Widget>
 	);
 }
 
-export default DashboardCTA;
+DashboardCTA.propTypes = {
+	Widget: PropTypes.func.isRequired,
+};

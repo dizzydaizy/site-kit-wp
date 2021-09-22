@@ -24,7 +24,6 @@ import PropTypes from 'prop-types';
 /**
  * WordPress dependencies
  */
-import { __, sprintf } from '@wordpress/i18n';
 import { useCallback } from '@wordpress/element';
 
 /**
@@ -64,19 +63,11 @@ const SurveyQuestionRatingChoice = ( { choice, answerQuestion } ) => {
 		<div className="googlesitekit-survey__choice">
 			<Button
 				icon={ <Icon width={ 30 } height={ 30 } /> }
-				aria-label={
-					sprintf(
-						/* translators: %s: Icon Expression */
-						__( '%s icon', 'google-site-kit' ),
-						choice.text,
-					)
-				}
+				aria-label={ choice.text }
 				onClick={ handleButtonClick }
 			/>
 
-			<p>
-				{ choice.text }
-			</p>
+			<p>{ choice.text }</p>
 		</div>
 	);
 };

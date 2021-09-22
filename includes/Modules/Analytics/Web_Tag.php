@@ -12,6 +12,7 @@ namespace Google\Site_Kit\Modules\Analytics;
 
 use Google\Site_Kit\Core\Modules\Tags\Module_Web_Tag;
 use Google\Site_Kit\Core\Util\Method_Proxy_Trait;
+use Google\Site_Kit\Core\Tags\Tag_With_DNS_Prefetch_Trait;
 
 /**
  * Class for Web tag.
@@ -22,7 +23,7 @@ use Google\Site_Kit\Core\Util\Method_Proxy_Trait;
  */
 class Web_Tag extends Module_Web_Tag implements Tag_Interface {
 
-	use Method_Proxy_Trait;
+	use Method_Proxy_Trait, Tag_With_DNS_Prefetch_Trait;
 
 	/**
 	 * Home domain name.
@@ -88,6 +89,13 @@ class Web_Tag extends Module_Web_Tag implements Tag_Interface {
 	 */
 	public function register() {
 		add_action( 'wp_enqueue_scripts', $this->get_method_proxy( 'enqueue_gtag_script' ) );
+		add_filter(
+			'wp_resource_hints',
+			$this->get_dns_prefetch_hints_callback( '//www.googletagmanager.com' ),
+			10,
+			2
+		);
+
 		$this->do_init_tag_action();
 	}
 
@@ -158,13 +166,17 @@ class Web_Tag extends Module_Web_Tag implements Tag_Interface {
 		$this->add_inline_ads_conversion_id_config();
 
 		$block_on_consent_attrs = $this->get_tag_blocked_on_consent_attribute();
-		if ( $block_on_consent_attrs ) {
-			$apply_block_on_consent_attrs = function ( $tag, $handle ) use ( $block_on_consent_attrs, $gtag_src ) {
-				if ( 'google_gtagjs' !== $handle ) {
-					return $tag;
-				}
 
-				return str_replace(
+		$filter_google_gtagjs = function ( $tag, $handle ) use ( $block_on_consent_attrs, $gtag_src ) {
+			if ( 'google_gtagjs' !== $handle ) {
+				return $tag;
+			}
+
+			$snippet_comment_begin = sprintf( "\n<!-- %s -->\n", esc_html__( 'Google Analytics snippet added by Site Kit', 'google-site-kit' ) );
+			$snippet_comment_end   = sprintf( "\n<!-- %s -->\n", esc_html__( 'End Google Analytics snippet added by Site Kit', 'google-site-kit' ) );
+
+			if ( $block_on_consent_attrs ) {
+				$tag = str_replace(
 					array(
 						"<script src='$gtag_src'", // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript
 						"<script src=\"$gtag_src\"", // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript
@@ -179,10 +191,14 @@ class Web_Tag extends Module_Web_Tag implements Tag_Interface {
 					),
 					$tag
 				);
-			};
 
-			add_filter( 'script_loader_tag', $apply_block_on_consent_attrs, 10, 2 );
-		}
+			}
+
+			return $snippet_comment_begin . $tag . $snippet_comment_end;
+		};
+
+		add_filter( 'script_loader_tag', $filter_google_gtagjs, 10, 2 );
+
 	}
 
 	/**

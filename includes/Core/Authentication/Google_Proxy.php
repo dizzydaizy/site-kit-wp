@@ -24,7 +24,8 @@ use Exception;
  */
 class Google_Proxy {
 
-	const BASE_URL                = 'https://sitekit.withgoogle.com';
+	const PRODUCTION_BASE_URL     = 'https://sitekit.withgoogle.com';
+	const STAGING_BASE_URL        = 'https://site-kit-dev.appspot.com';
 	const OAUTH2_SITE_URI         = '/o/oauth2/site/';
 	const OAUTH2_REVOKE_URI       = '/o/oauth2/revoke/';
 	const OAUTH2_TOKEN_URI        = '/o/oauth2/token/';
@@ -66,7 +67,8 @@ class Google_Proxy {
 	 * @return string The application name.
 	 */
 	public static function get_application_name() {
-		return 'wordpress/google-site-kit/' . GOOGLESITEKIT_VERSION;
+		$platform = self::get_platform();
+		return $platform . '/google-site-kit/' . GOOGLESITEKIT_VERSION;
 	}
 
 	/**
@@ -175,11 +177,9 @@ class Google_Proxy {
 	 * @return string Complete proxy URL.
 	 */
 	public function url( $path = '' ) {
-		if ( defined( 'GOOGLESITEKIT_PROXY_URL' ) && GOOGLESITEKIT_PROXY_URL ) {
-			$url = GOOGLESITEKIT_PROXY_URL;
-		} else {
-			$url = self::BASE_URL;
-		}
+		$url = defined( 'GOOGLESITEKIT_PROXY_URL' ) && self::STAGING_BASE_URL === GOOGLESITEKIT_PROXY_URL
+			? self::STAGING_BASE_URL
+			: self::PRODUCTION_BASE_URL;
 
 		$url = untrailingslashit( $url );
 
@@ -441,12 +441,13 @@ class Google_Proxy {
 	 * @return array|WP_Error Response of the wp_remote_post request.
 	 */
 	public function get_features( Credentials $credentials ) {
+		$platform = self::get_platform();
 		return $this->request(
 			self::FEATURES_URI,
 			$credentials,
 			array(
 				'body' => array(
-					'platform' => 'wordpress/google-site-kit',
+					'platform' => $platform . '/google-site-kit',
 					'version'  => GOOGLESITEKIT_VERSION,
 				),
 			)
@@ -454,9 +455,23 @@ class Google_Proxy {
 	}
 
 	/**
+	 * Gets the platform.
+	 *
+	 * @since 1.37.0
+	 *
+	 * @return string WordPress multisite or WordPress.
+	 */
+	public static function get_platform() {
+		if ( is_multisite() ) {
+			return 'wordpress-multisite';
+		}
+		return 'wordpress'; // phpcs:ignore WordPress.WP.CapitalPDangit.Misspelled
+	}
+
+	/**
 	 * Sends survey trigger ID to the proxy.
 	 *
-	 * @since n.e.x.t
+	 * @since 1.35.0
 	 *
 	 * @param Credentials $credentials  Credentials instance.
 	 * @param string      $access_token Access token.
@@ -483,7 +498,7 @@ class Google_Proxy {
 	/**
 	 * Sends survey event to the proxy.
 	 *
-	 * @since n.e.x.t
+	 * @since 1.35.0
 	 *
 	 * @param Credentials     $credentials  Credentials instance.
 	 * @param string          $access_token Access token.

@@ -20,13 +20,15 @@
  * Internal dependencies
  */
 import Data from 'googlesitekit-data';
-import { STORE_NAME } from './constants';
+import { MODULES_IDEA_HUB } from './constants';
 import baseModuleStore from './base';
 import newIdeas from './new-ideas';
 import draftIdeas from './draft-ideas';
 import savedIdeas from './saved-ideas';
 import draftPostIdeas from './draft-post-ideas';
 import publishedPostIdeas from './published-post-ideas';
+import ideaState from './idea-state';
+import moduleData from './module-data';
 
 const store = Data.combineStores(
 	baseModuleStore,
@@ -35,6 +37,8 @@ const store = Data.combineStores(
 	savedIdeas,
 	draftPostIdeas,
 	publishedPostIdeas,
+	ideaState,
+	moduleData
 );
 
 export const initialState = store.initialState;
@@ -45,7 +49,7 @@ export const resolvers = store.resolvers;
 export const selectors = store.selectors;
 
 export const registerStore = ( registry ) => {
-	registry.registerStore( STORE_NAME, store );
+	registry.registerStore( MODULES_IDEA_HUB, store );
 };
 
 export default store;

@@ -16,6 +16,7 @@ use Google\Site_Kit\Core\Assets\Script;
 use Google\Site_Kit\Core\Authentication\Clients\Google_Site_Kit_Client;
 use Google\Site_Kit\Core\Modules\Module;
 use Google\Site_Kit\Core\Modules\Module_Settings;
+use Google\Site_Kit\Core\Modules\Module_With_Deactivation;
 use Google\Site_Kit\Core\Modules\Module_With_Debug_Fields;
 use Google\Site_Kit\Core\Modules\Module_With_Assets;
 use Google\Site_Kit\Core\Modules\Module_With_Assets_Trait;
@@ -27,7 +28,9 @@ use Google\Site_Kit\Core\Modules\Module_With_Owner;
 use Google\Site_Kit\Core\Modules\Module_With_Owner_Trait;
 use Google\Site_Kit\Core\REST_API\Exception\Invalid_Datapoint_Exception;
 use Google\Site_Kit\Core\REST_API\Data_Request;
+use Google\Site_Kit\Core\Tags\Guards\Tag_Production_Guard;
 use Google\Site_Kit\Core\Tags\Guards\Tag_Verify_Guard;
+use Google\Site_Kit\Core\Util\BC_Functions;
 use Google\Site_Kit\Core\Util\Debug_Data;
 use Google\Site_Kit\Core\Util\Method_Proxy_Trait;
 use Google\Site_Kit\Modules\Analytics\Settings as Analytics_Settings;
@@ -35,9 +38,9 @@ use Google\Site_Kit\Modules\Analytics_4\Settings;
 use Google\Site_Kit\Modules\Analytics_4\Tag_Guard;
 use Google\Site_Kit\Modules\Analytics_4\Web_Tag;
 use Google\Site_Kit_Dependencies\Google\Model as Google_Model;
-use Google\Site_Kit_Dependencies\Google_Service_GoogleAnalyticsAdmin;
-use Google\Site_Kit_Dependencies\Google_Service_GoogleAnalyticsAdmin_GoogleAnalyticsAdminV1alphaProperty;
-use Google\Site_Kit_Dependencies\Google_Service_GoogleAnalyticsAdmin_GoogleAnalyticsAdminV1alphaWebDataStream;
+use Google\Site_Kit_Dependencies\Google\Service\GoogleAnalyticsAdmin as Google_Service_GoogleAnalyticsAdmin;
+use Google\Site_Kit_Dependencies\Google\Service\GoogleAnalyticsAdmin\GoogleAnalyticsAdminV1alphaProperty as Google_Service_GoogleAnalyticsAdmin_GoogleAnalyticsAdminV1alphaProperty;
+use Google\Site_Kit_Dependencies\Google\Service\GoogleAnalyticsAdmin\GoogleAnalyticsAdminV1alphaWebDataStream as Google_Service_GoogleAnalyticsAdmin_GoogleAnalyticsAdminV1alphaWebDataStream;
 use Google\Site_Kit_Dependencies\Psr\Http\Message\RequestInterface;
 use WP_Error;
 
@@ -49,7 +52,7 @@ use WP_Error;
  * @ignore
  */
 final class Analytics_4 extends Module
-	implements Module_With_Scopes, Module_With_Settings, Module_With_Debug_Fields, Module_With_Owner, Module_With_Assets {
+	implements Module_With_Scopes, Module_With_Settings, Module_With_Debug_Fields, Module_With_Owner, Module_With_Assets, Module_With_Deactivation {
 	use Method_Proxy_Trait;
 	use Module_With_Assets_Trait;
 	use Module_With_Owner_Trait;
@@ -72,6 +75,7 @@ final class Analytics_4 extends Module
 		add_action( 'googlesitekit_analytics_handle_provisioning_callback', $this->get_method_proxy( 'handle_provisioning_callback' ) );
 		// Analytics 4 tag placement logic.
 		add_action( 'template_redirect', $this->get_method_proxy( 'register_tag' ) );
+		add_action( 'googlesitekit_analytics_tracking_opt_out', $this->get_method_proxy( 'analytics_tracking_opt_out' ) );
 	}
 
 	/**
@@ -193,7 +197,7 @@ final class Analytics_4 extends Module
 			'POST:create-webdatastream' => array(
 				'service'                => 'analyticsadmin',
 				'scopes'                 => array( 'https://www.googleapis.com/auth/analytics.edit' ),
-				'request_scopes_message' => __( 'You’ll need to grant Site Kit permission to create a new Analytics 4 web data stream on your behalf.', 'google-site-kit' ),
+				'request_scopes_message' => __( 'You’ll need to grant Site Kit permission to create a new Analytics 4 Measurement ID for this site on your behalf.', 'google-site-kit' ),
 			),
 			'GET:properties'            => array( 'service' => 'analyticsadmin' ),
 			'GET:property'              => array( 'service' => 'analyticsadmin' ),
@@ -205,7 +209,7 @@ final class Analytics_4 extends Module
 	/**
 	 * Creates a new property for provided account.
 	 *
-	 * @since n.e.x.t
+	 * @since 1.35.0
 	 *
 	 * @param string $account_id Account ID.
 	 * @return Google_Service_GoogleAnalyticsAdmin_GoogleAnalyticsAdminV1alphaProperty A new property.
@@ -227,7 +231,7 @@ final class Analytics_4 extends Module
 	/**
 	 * Creates a new web data stream for provided property.
 	 *
-	 * @since n.e.x.t
+	 * @since 1.35.0
 	 *
 	 * @param string $property_id Property ID.
 	 * @return Google_Service_GoogleAnalyticsAdmin_GoogleAnalyticsAdminV1alphaWebDataStream A new web data stream.
@@ -246,15 +250,39 @@ final class Analytics_4 extends Module
 	}
 
 	/**
+	 * Handles Analytics measurement opt-out for a GA4 property.
+	 *
+	 * @since 1.41.0
+	 */
+	private function analytics_tracking_opt_out() {
+		$settings       = $this->get_settings()->get();
+		$measurement_id = $settings['measurementID'];
+		if ( ! $measurement_id ) {
+			return;
+		}
+		BC_Functions::wp_print_inline_script_tag( sprintf( 'window["ga-disable-%s"] = true;', esc_attr( $measurement_id ) ) );
+
+	}
+
+	/**
 	 * Provisions new GA4 property and web data stream for provided account.
 	 *
-	 * @since n.e.x.t
+	 * @since 1.35.0
 	 *
 	 * @param string $account_id Account ID.
 	 */
 	private function handle_provisioning_callback( $account_id ) {
 		// TODO: remove this try/catch once GA4 API stabilizes.
 		try {
+			// Reset the current GA4 settings.
+			$this->get_settings()->merge(
+				array(
+					'propertyID'      => '',
+					'webDataStreamID' => '',
+					'measurementID'   => '',
+				)
+			);
+
 			$property = $this->create_property( $account_id );
 			$property = self::filter_property_with_ids( $property );
 			if ( empty( $property->_id ) ) {
@@ -374,21 +402,14 @@ final class Analytics_4 extends Module
 					);
 				}
 
-				return function() use ( $data ) {
-					$requests = array();
+				$analyticsadmin = $this->get_service( 'analyticsadmin' );
+				$batch_request  = $analyticsadmin->createBatch();
+				foreach ( $data['propertyIDs'] as $property_id ) {
+					$batch_request->add( $analyticsadmin->properties_webDataStreams->listPropertiesWebDataStreams( self::normalize_property_id( $property_id ) ) ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				}
 
-					foreach ( $data['propertyIDs'] as $property_id ) {
-						$requests[] = new Data_Request(
-							'GET',
-							'modules',
-							self::MODULE_SLUG,
-							'webdatastreams',
-							array( 'propertyID' => $property_id ),
-							$property_id
-						);
-					}
-
-					return $this->get_batch_data( $requests );
+				return function() use ( $batch_request ) {
+					return $batch_request->execute();
 				};
 		}
 
@@ -434,6 +455,8 @@ final class Analytics_4 extends Module
 				return self::filter_property_with_ids( $response );
 			case 'GET:webdatastreams':
 				return array_map( array( self::class, 'filter_webdatastream_with_ids' ), $response->getWebDataStreams() );
+			case 'GET:webdatastreams-batch':
+				return self::parse_webdatastreams_batch( $response );
 		}
 
 		return parent::parse_data_response( $data, $response );
@@ -533,6 +556,7 @@ final class Analytics_4 extends Module
 
 		$tag->use_guard( new Tag_Verify_Guard( $this->context->input() ) );
 		$tag->use_guard( new Tag_Guard( $this->get_settings() ) );
+		$tag->use_guard( new Tag_Production_Guard() );
 
 		if ( $tag->can_register() ) {
 			// Here we need to retrieve the ads conversion ID from the
@@ -608,6 +632,28 @@ final class Analytics_4 extends Module
 		}
 
 		return $obj;
+	}
+
+	/**
+	 * Parses a response, adding the _id and _propertyID params and converting to an array keyed by the propertyID and web datastream IDs.
+	 *
+	 * @since 1.39.0
+	 *
+	 * @param GoogleAnalyticsAdminV1alphaListWebDataStreamsResponse[] $response Array of GoogleAnalyticsAdminV1alphaListWebDataStreamsResponse objects.
+	 * @return \stdClass[] Array of models containing _id and _propertyID attributes, keyed by the propertyID.
+	 */
+	public static function parse_webdatastreams_batch( $response ) {
+		$mapped = array();
+		foreach ( $response as $single_response ) {
+			$webdatastreams = $single_response->getWebDataStreams();
+			foreach ( $webdatastreams as $webdatastream ) {
+				$value            = self::filter_webdatastream_with_ids( $webdatastream );
+				$key              = $value->_propertyID; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				$mapped[ $key ]   = isset( $mapped[ $key ] ) ? $mapped[ $key ] : array();
+				$mapped[ $key ][] = $value;
+			}
+		}
+		return $mapped;
 	}
 
 	/**

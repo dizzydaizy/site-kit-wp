@@ -5,11 +5,16 @@ on:
     branches:
       - develop
       - main
+      - 'release/**'
+    paths-ignore:
+      - 'docs/**'
     tags: ['**']
   pull_request:
     branches:
       - develop
       - main
+    paths-ignore:
+      - 'docs/**'
     types:
       - opened
       - closed

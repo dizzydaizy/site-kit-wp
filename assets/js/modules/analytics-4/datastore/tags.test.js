@@ -20,8 +20,13 @@
  * Internal dependencies
  */
 import API from 'googlesitekit-api';
-import { STORE_NAME } from './constants';
-import { createTestRegistry, unsubscribeFromAll, untilResolved, provideSiteInfo } from '../../../../../tests/js/utils';
+import { MODULES_ANALYTICS_4 } from './constants';
+import {
+	createTestRegistry,
+	unsubscribeFromAll,
+	untilResolved,
+	provideSiteInfo,
+} from '../../../../../tests/js/utils';
 
 describe( 'modules/analytics tags', () => {
 	let registry;
@@ -45,20 +50,20 @@ describe( 'modules/analytics tags', () => {
 
 	describe( 'selectors', () => {
 		describe( 'getExistingTag', () => {
-			const expectedTag = '1A2BCD345E';
+			const expectedTag = 'G-1A2BCD345E';
 			const tests = {
 				'<script></script> tag': `
-					<script async src="https://googletagmanager.com/gtag/js?id=G-${ expectedTag }"></script>
+					<script async src="https://googletagmanager.com/gtag/js?id=${ expectedTag }"></script>
 				`,
 				'<script /> tag': `
 					<script
 					 	async
-						src="http://www.googletagmanager.com/gtag/js?id=G-${ expectedTag }"
+						src="http://www.googletagmanager.com/gtag/js?id=${ expectedTag }"
 					/>
 				`,
 				'__gaTracker( "create", ... ) call': `
 					<script>
-						__gaTracker ( "create", 'G-${ expectedTag }',"auto");
+						__gaTracker ( "create", '${ expectedTag }',"auto");
 					</script>
 				`,
 				'gtag("config", "...") call': `
@@ -67,14 +72,14 @@ describe( 'modules/analytics tags', () => {
 						function gtag(){dataLayer.push(arguments);}
 						gtag('js', new Date());
 						
-						gtag('config', 'G-${ expectedTag }');
+						gtag('config', '${ expectedTag }');
 					</script>
 				`,
 				'ga( "create", ... ) call': `
 					<script>
 						ga(
 							"create",
-							"G-${ expectedTag }",
+							"${ expectedTag }",
 							"auto"
 						);
 					</script>
@@ -82,14 +87,14 @@ describe( 'modules/analytics tags', () => {
 				'_gaq.push( ... ) call': `
 					<script>
 						var _gaq = _gaq || [];
-						_gaq.push(['_setAccount', 'G-${ expectedTag }']);
+						_gaq.push(['_setAccount', '${ expectedTag }']);
 						_gaq.push(['_trackPageview']);
 					</script>
 				`,
 				'_gaq.push( myTracker... ) call': `
 					<script>
 						var _gaq = _gaq || [];
-						_gaq.push(['myTracker._setAccount', 'G-${ expectedTag }']);
+						_gaq.push(['myTracker._setAccount', '${ expectedTag }']);
 						_gaq.push(['myTracker._setDomainName', 'foo.com']);
 						_gaq.push(['myTracker._trackPageview']);
 					</script>
@@ -100,7 +105,7 @@ describe( 'modules/analytics tags', () => {
 						<script type="application/json">
 							{
 								"vars" : {
-									"gtag_id": "G-${ expectedTag }",
+									"gtag_id": "${ expectedTag }",
 									"config" : {
 									  "G-${ expectedTag }": { "groups": "default" }
 									}
@@ -114,7 +119,7 @@ describe( 'modules/analytics tags', () => {
 						<script type="application/json">
 							{
 								"vars": {
-									"account": "G-${ expectedTag }"
+									"account": "${ expectedTag }"
 								}
 							}
 						</script>
@@ -122,21 +127,32 @@ describe( 'modules/analytics tags', () => {
 				`,
 			};
 
-			it.each( Object.entries( tests ) )( 'should correctly find GA4 measurement ID in the %s', async ( _, body ) => {
-				fetchMock.getOnce( { query: { tagverify: '1' } }, {
-					body: `
+			it.each( Object.entries( tests ) )(
+				'should correctly find GA4 measurement ID in the %s',
+				async ( _, body ) => {
+					fetchMock.getOnce(
+						{ query: { tagverify: '1' } },
+						{
+							body: `
 						<html>
 							<head></head>
 							<body>${ body }</body>
 						</html>
 					`,
-				} );
+						}
+					);
 
-				registry.select( STORE_NAME ).getExistingTag();
-				await untilResolved( registry, STORE_NAME ).getExistingTag();
+					registry.select( MODULES_ANALYTICS_4 ).getExistingTag();
+					await untilResolved(
+						registry,
+						MODULES_ANALYTICS_4
+					).getExistingTag();
 
-				expect( registry.select( STORE_NAME ).getExistingTag() ).toEqual( expectedTag );
-			} );
+					expect(
+						registry.select( MODULES_ANALYTICS_4 ).getExistingTag()
+					).toEqual( expectedTag );
+				}
+			);
 		} );
 	} );
 } );
