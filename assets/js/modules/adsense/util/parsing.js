@@ -37,16 +37,16 @@ export function parseAccountID( clientID ) {
 }
 
 /**
- * Parses the AdSense client ID of type AFC from a given AdSense account ID.
+ * Parses the AdSense account ID from an existing tag.
  *
- * @since 1.9.0
+ * @since 1.105.0
  *
- * @param {string} accountID AdSense account ID.
- * @return {(string|undefined)} AdSense AFC client ID, or undefined if invalid account ID.
+ * @param {string} existingTag Existing tag.
+ * @return {(string|undefined)} AdSense account ID, or undefined if invalid tag.
  */
-export function parseAFCClientID( accountID ) {
-	if ( ! isValidAccountID( accountID ) ) {
+export function parseAccountIDFromExistingTag( existingTag ) {
+	if ( ! isValidAccountID( existingTag ) ) {
 		return undefined;
 	}
-	return `ca-${ accountID }`;
+	return existingTag.match( /pub-\d+$/ )[ 0 ];
 }

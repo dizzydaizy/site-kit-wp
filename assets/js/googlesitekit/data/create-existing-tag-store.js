@@ -24,11 +24,13 @@ import invariant from 'invariant';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
+import {
+	commonActions,
+	createRegistryControl,
+	createRegistrySelector,
+} from 'googlesitekit-data';
 import { CORE_SITE } from '../datastore/site/constants';
 import { getExistingTagURLs, extractExistingTag } from '../../util/tag';
-
-const { createRegistryControl, createRegistrySelector } = Data;
 
 // Actions
 const FETCH_GET_EXISTING_TAG = 'FETCH_GET_EXISTING_TAG';
@@ -53,8 +55,14 @@ export const createExistingTagStore = ( {
 	isValidTag,
 	tagMatchers,
 } = {} ) => {
-	invariant( 'string' === typeof STORE_NAME && STORE_NAME, 'storeName is required.' );
-	invariant( 'function' === typeof isValidTag, 'isValidTag must be a function.' );
+	invariant(
+		'string' === typeof STORE_NAME && STORE_NAME,
+		'storeName is required.'
+	);
+	invariant(
+		'function' === typeof isValidTag,
+		'isValidTag must be a function.'
+	);
 	invariant( Array.isArray( tagMatchers ), 'tagMatchers must be an Array.' );
 
 	const initialState = {
@@ -69,7 +77,10 @@ export const createExistingTagStore = ( {
 			};
 		},
 		receiveGetExistingTag( existingTag ) {
-			invariant( existingTag === null || 'string' === typeof existingTag, 'existingTag must be a tag string or null.' );
+			invariant(
+				existingTag === null || 'string' === typeof existingTag,
+				'existingTag must be a tag string or null.'
+			);
 
 			return {
 				payload: {
@@ -87,37 +98,50 @@ export const createExistingTagStore = ( {
 	};
 
 	const controls = {
-		[ FETCH_GET_EXISTING_TAG ]: createRegistryControl( ( registry ) => async () => {
-			const homeURL = registry.select( CORE_SITE ).getHomeURL();
-			const ampMode = registry.select( CORE_SITE ).getAMPMode();
-			const existingTagURLs = await getExistingTagURLs( { homeURL, ampMode } );
-
-			for ( const url of existingTagURLs ) {
-				await registry.dispatch( CORE_SITE ).waitForHTMLForURL( url );
-				const html = registry.select( CORE_SITE ).getHTMLForURL( url );
-				const tagFound = extractExistingTag( html, tagMatchers );
-				if ( tagFound ) {
-					return tagFound;
-				}
-			}
-
-			return null;
-		} ),
-		[ WAIT_FOR_EXISTING_TAG ]: createRegistryControl( ( registry ) => () => {
-			const isExistingTagLoaded = () => registry.select( STORE_NAME ).getExistingTag() !== undefined;
-			if ( isExistingTagLoaded() ) {
-				return true;
-			}
-
-			return new Promise( ( resolve ) => {
-				const unsubscribe = registry.subscribe( () => {
-					if ( isExistingTagLoaded() ) {
-						unsubscribe();
-						resolve();
-					}
+		[ FETCH_GET_EXISTING_TAG ]: createRegistryControl(
+			( registry ) => async () => {
+				const homeURL = registry.select( CORE_SITE ).getHomeURL();
+				const ampMode = registry.select( CORE_SITE ).getAMPMode();
+				const existingTagURLs = await getExistingTagURLs( {
+					homeURL,
+					ampMode,
 				} );
-			} );
-		} ),
+
+				for ( const url of existingTagURLs ) {
+					await registry
+						.dispatch( CORE_SITE )
+						.waitForHTMLForURL( url );
+					const html = registry
+						.select( CORE_SITE )
+						.getHTMLForURL( url );
+					const tagFound = extractExistingTag( html, tagMatchers );
+					if ( tagFound ) {
+						return tagFound;
+					}
+				}
+
+				return null;
+			}
+		),
+		[ WAIT_FOR_EXISTING_TAG ]: createRegistryControl(
+			( registry ) => () => {
+				const isExistingTagLoaded = () =>
+					registry.select( STORE_NAME ).getExistingTag() !==
+					undefined;
+				if ( isExistingTagLoaded() ) {
+					return true;
+				}
+
+				return new Promise( ( resolve ) => {
+					const unsubscribe = registry.subscribe( () => {
+						if ( isExistingTagLoaded() ) {
+							unsubscribe();
+							resolve();
+						}
+					} );
+				} );
+			}
+		),
 	};
 
 	const reducer = ( state = initialState, { type, payload } ) => {
@@ -139,11 +163,15 @@ export const createExistingTagStore = ( {
 
 	const resolvers = {
 		*getExistingTag() {
-			const registry = yield Data.commonActions.getRegistry();
+			const registry = yield commonActions.getRegistry();
 
-			if ( registry.select( STORE_NAME ).getExistingTag() === undefined ) {
+			if (
+				registry.select( STORE_NAME ).getExistingTag() === undefined
+			) {
 				const existingTag = yield actions.fetchGetExistingTag();
-				registry.dispatch( STORE_NAME ).receiveGetExistingTag( existingTag );
+				registry
+					.dispatch( STORE_NAME )
+					.receiveGetExistingTag( existingTag );
 			}
 		},
 	};

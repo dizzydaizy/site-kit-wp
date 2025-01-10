@@ -17,72 +17,38 @@
  */
 
 /**
- * WordPress dependencies
- */
-import { __ } from '@wordpress/i18n';
-
-/**
  * Internal dependencies
  */
 import { SettingsEdit, SettingsView } from './components/settings';
-import DashboardImpressionsWidget from './components/dashboard/DashboardImpressionsWidget';
-import DashboardClicksWidget from './components/dashboard/DashboardClicksWidget';
 import DashboardPopularKeywordsWidget from './components/dashboard/DashboardPopularKeywordsWidget';
-import ModulePopularKeywordsWidget from './components/module/ModulePopularKeywordsWidget';
-import ModuleOverviewWidget from './components/module/ModuleOverviewWidget';
+import SearchFunnelWidgetGA4 from './components/dashboard/SearchFunnelWidgetGA4';
 import {
-	AREA_DASHBOARD_ACQUISITION,
-	AREA_DASHBOARD_SEARCH_FUNNEL,
-	AREA_PAGE_DASHBOARD_ACQUISITION,
-	AREA_PAGE_DASHBOARD_SEARCH_FUNNEL,
+	AREA_MAIN_DASHBOARD_CONTENT_PRIMARY,
+	AREA_MAIN_DASHBOARD_TRAFFIC_PRIMARY,
+	AREA_ENTITY_DASHBOARD_CONTENT_PRIMARY,
+	AREA_ENTITY_DASHBOARD_TRAFFIC_PRIMARY,
+	AREA_MAIN_DASHBOARD_KEY_METRICS_PRIMARY,
 } from '../../googlesitekit/widgets/default-areas';
-import SearchConsoleIcon from '../../../svg/search-console.svg';
-import { STORE_NAME } from './datastore/constants';
-import { CONTEXT_MODULE_SEARCH_CONSOLE, AREA_MODULE_SEARCH_CONSOLE_MAIN } from './constants';
-import { WIDGET_AREA_STYLES } from '../../googlesitekit/widgets/datastore/constants';
+import SearchConsoleIcon from '../../../svg/graphics/search-console.svg';
+import { MODULES_SEARCH_CONSOLE } from './datastore/constants';
+import PopularKeywordsWidget from './components/widgets/PopularKeywordsWidget';
+import {
+	CORE_USER,
+	KM_SEARCH_CONSOLE_POPULAR_KEYWORDS,
+} from '../../googlesitekit/datastore/user/constants';
 
 export { registerStore } from './datastore';
 
 export const registerModule = ( modules ) => {
-	modules.registerModule(
-		'search-console',
-		{
-			storeName: STORE_NAME,
-			SettingsEditComponent: SettingsEdit,
-			SettingsViewComponent: SettingsView,
-			Icon: SearchConsoleIcon,
-			screenWidgetContext: CONTEXT_MODULE_SEARCH_CONSOLE,
-		}
-	);
+	modules.registerModule( 'search-console', {
+		storeName: MODULES_SEARCH_CONSOLE,
+		SettingsEditComponent: SettingsEdit,
+		SettingsViewComponent: SettingsView,
+		Icon: SearchConsoleIcon,
+	} );
 };
 
 export const registerWidgets = ( widgets ) => {
-	widgets.registerWidget(
-		'searchConsoleImpressions',
-		{
-			Component: DashboardImpressionsWidget,
-			width: widgets.WIDGET_WIDTHS.QUARTER,
-			priority: 1,
-			wrapWidget: true,
-		},
-		[
-			AREA_DASHBOARD_SEARCH_FUNNEL,
-			AREA_PAGE_DASHBOARD_SEARCH_FUNNEL,
-		],
-	);
-	widgets.registerWidget(
-		'searchConsoleClicks',
-		{
-			Component: DashboardClicksWidget,
-			width: widgets.WIDGET_WIDTHS.QUARTER,
-			priority: 2,
-			wrapWidget: true,
-		},
-		[
-			AREA_DASHBOARD_SEARCH_FUNNEL,
-			AREA_PAGE_DASHBOARD_SEARCH_FUNNEL,
-		],
-	);
 	widgets.registerWidget(
 		'searchConsolePopularKeywords',
 		{
@@ -90,43 +56,46 @@ export const registerWidgets = ( widgets ) => {
 			width: [ widgets.WIDGET_WIDTHS.HALF, widgets.WIDGET_WIDTHS.FULL ],
 			priority: 1,
 			wrapWidget: false,
+			modules: [ 'search-console' ],
 		},
 		[
-			AREA_DASHBOARD_ACQUISITION,
-			AREA_PAGE_DASHBOARD_ACQUISITION,
-		],
+			AREA_MAIN_DASHBOARD_CONTENT_PRIMARY,
+			AREA_ENTITY_DASHBOARD_CONTENT_PRIMARY,
+		]
 	);
+
+	// Register widget reliant on Analytics 4 (GA4).
 	widgets.registerWidget(
-		'searchConsoleModuleOverview',
+		'searchFunnelGA4',
 		{
-			Component: ModuleOverviewWidget,
-			width: widgets.WIDGET_WIDTHS.FULL,
-			priority: 1,
-			wrapWidget: false,
-		},
-		[
-			AREA_MODULE_SEARCH_CONSOLE_MAIN,
-		],
-	);
-	widgets.registerWidgetArea(
-		AREA_MODULE_SEARCH_CONSOLE_MAIN,
-		{
-			priority: 1,
-			style: WIDGET_AREA_STYLES.BOXES,
-			title: __( 'Overview', 'google-site-kit' ),
-		},
-		CONTEXT_MODULE_SEARCH_CONSOLE,
-	);
-	widgets.registerWidget(
-		'searchConsoleModulePopularKeywords',
-		{
-			Component: ModulePopularKeywordsWidget,
+			Component: SearchFunnelWidgetGA4,
 			width: [ widgets.WIDGET_WIDTHS.FULL ],
+			priority: 3,
+			wrapWidget: false,
+			modules: [ 'search-console' ],
+		},
+		[
+			AREA_MAIN_DASHBOARD_TRAFFIC_PRIMARY,
+			AREA_ENTITY_DASHBOARD_TRAFFIC_PRIMARY,
+		]
+	);
+
+	/*
+	 * Key metrics widgets.
+	 */
+	widgets.registerWidget(
+		KM_SEARCH_CONSOLE_POPULAR_KEYWORDS,
+		{
+			Component: PopularKeywordsWidget,
+			width: widgets.WIDGET_WIDTHS.QUARTER,
 			priority: 2,
 			wrapWidget: false,
+			modules: [ 'search-console' ],
+			isActive: ( select ) =>
+				select( CORE_USER ).isKeyMetricActive(
+					KM_SEARCH_CONSOLE_POPULAR_KEYWORDS
+				),
 		},
-		[
-			AREA_MODULE_SEARCH_CONSOLE_MAIN,
-		],
+		[ AREA_MAIN_DASHBOARD_KEY_METRICS_PRIMARY ]
 	);
 };

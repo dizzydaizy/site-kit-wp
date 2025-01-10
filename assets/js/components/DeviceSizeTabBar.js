@@ -19,8 +19,6 @@
 /**
  * External dependencies
  */
-import Tab from '@material/react-tab';
-import TabBar from '@material/react-tab-bar';
 import PropTypes from 'prop-types';
 
 /**
@@ -32,11 +30,13 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import DeviceSizeMobileIcon from '../../svg/device-size-mobile-icon.svg';
-import DeviceSizeDesktopIcon from '../../svg/device-size-desktop-icon.svg';
+import { Tab, TabBar } from 'googlesitekit-components';
+import DeviceSizeMobileIcon from '../../svg/icons/device-size-mobile-icon.svg';
+import DeviceSizeDesktopIcon from '../../svg/icons/device-size-desktop-icon.svg';
 
-const DeviceSizeTabBar = ( {
+function DeviceSizeTabBar( {
 	activeTab,
+	disabled = false,
 	handleDeviceSizeUpdate,
 	deviceSizes = [
 		{
@@ -50,17 +50,22 @@ const DeviceSizeTabBar = ( {
 			icon: <DeviceSizeDesktopIcon width="23" height="17" />,
 		},
 	],
-} ) => {
-	const onUpdate = useCallback( ( index ) => {
-		const device = deviceSizes[ index ];
-		handleDeviceSizeUpdate( device, index );
-	}, [ deviceSizes, handleDeviceSizeUpdate ] );
+} ) {
+	const onUpdate = useCallback(
+		( index ) => {
+			const device = deviceSizes[ index ];
+			handleDeviceSizeUpdate( device, index );
+		},
+		[ deviceSizes, handleDeviceSizeUpdate ]
+	);
 
 	if ( ! deviceSizes?.length ) {
 		return null;
 	}
 
-	const activeIndex = deviceSizes.findIndex( ( { slug } ) => slug === activeTab );
+	const activeIndex = deviceSizes.findIndex(
+		( { slug } ) => slug === activeTab
+	);
 
 	return (
 		<TabBar
@@ -73,25 +78,26 @@ const DeviceSizeTabBar = ( {
 					<Tab
 						key={ `google-sitekit-device-size-tab-key-${ i }` }
 						aria-label={ label }
+						disabled={ disabled }
 						focusOnActivate={ false }
 					>
 						{ icon }
 					</Tab>
 				);
-			}
-			) }
+			} ) }
 		</TabBar>
 	);
-};
+}
 
 DeviceSizeTabBar.propTypes = {
 	activeTab: PropTypes.string,
+	disabled: PropTypes.bool,
 	deviceSizes: PropTypes.arrayOf(
 		PropTypes.shape( {
 			label: PropTypes.string,
 			slug: PropTypes.string,
 			icon: PropTypes.node,
-		} ),
+		} )
 	),
 	handleDeviceSizeUpdate: PropTypes.func,
 };

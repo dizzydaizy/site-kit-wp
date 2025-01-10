@@ -22,11 +22,10 @@
 import {
 	createTestRegistry,
 	untilResolved,
-	unsubscribeFromAll,
 	provideSiteInfo,
 } from '../../../../../tests/js/utils';
 import { initialState } from './index';
-import { STORE_NAME } from './constants';
+import { CORE_SITE } from './constants';
 
 describe( 'core/site site info', () => {
 	const baseInfoVar = '_googlesitekitBaseData';
@@ -37,9 +36,20 @@ describe( 'core/site site info', () => {
 		referenceSiteURL: 'http://example.com',
 		proxyPermissionsURL: '', // not available until site is authenticated
 		proxySetupURL: 'https://sitekit.withgoogle.com/site-management/setup/', // params omitted
+		setupErrorMessage: null,
+		setupErrorRedoURL: null,
 		siteName: 'Something Test',
 		timezone: 'America/Denver',
 		usingProxy: true,
+		widgetsAdminURL: 'http://example.com/wp-admin/widgets.php',
+		postTypes: [
+			{
+				slug: 'post',
+				label: 'Post',
+			},
+		],
+		productPostType: [ 'product' ],
+		isMultisite: false,
 	};
 	const entityInfoVar = '_googlesitekitEntityData';
 	const entityInfo = {
@@ -49,31 +59,172 @@ describe( 'core/site site info', () => {
 		currentEntityID: '4',
 	};
 	let registry;
+	let store;
 
 	beforeEach( () => {
 		registry = createTestRegistry();
+		store = registry.stores[ CORE_SITE ].store;
 	} );
 
 	afterEach( () => {
 		delete global[ baseInfoVar ];
 		delete global[ entityInfoVar ];
-		unsubscribeFromAll( registry );
 	} );
 
 	describe( 'actions', () => {
 		describe( 'receiveSiteInfo', () => {
 			it( 'requires the siteInfo param', () => {
 				expect( () => {
-					registry.dispatch( STORE_NAME ).receiveSiteInfo();
+					registry.dispatch( CORE_SITE ).receiveSiteInfo();
 				} ).toThrow( 'siteInfo is required.' );
 			} );
 
 			it( 'receives and sets site info ', async () => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( { ...baseInfo, ...entityInfo } );
+				await registry
+					.dispatch( CORE_SITE )
+					.receiveSiteInfo( { ...baseInfo, ...entityInfo } );
 
 				expect(
-					registry.select( STORE_NAME ).getSiteInfo()
-				).toMatchObject( { ...baseInfo, ...entityInfo, currentEntityID: 4 } );
+					registry.select( CORE_SITE ).getSiteInfo()
+				).toMatchObject( {
+					...baseInfo,
+					...entityInfo,
+					currentEntityID: 4,
+				} );
+			} );
+		} );
+
+		describe( 'setSiteKitAutoUpdatesEnabled', () => {
+			it( 'sets the siteKitAutoUpdatesEnabled property', () => {
+				registry
+					.dispatch( CORE_SITE )
+					.setSiteKitAutoUpdatesEnabled( true );
+
+				expect(
+					registry.select( CORE_SITE ).getSiteKitAutoUpdatesEnabled()
+				).toBe( true );
+
+				registry
+					.dispatch( CORE_SITE )
+					.setSiteKitAutoUpdatesEnabled( false );
+
+				expect(
+					registry.select( CORE_SITE ).getSiteKitAutoUpdatesEnabled()
+				).toBe( false );
+			} );
+
+			it( 'requires a boolean argument', () => {
+				expect( () => {
+					registry
+						.dispatch( CORE_SITE )
+						.setSiteKitAutoUpdatesEnabled();
+				} ).toThrow( 'siteKitAutoUpdatesEnabled must be a boolean.' );
+
+				expect( () => {
+					registry
+						.dispatch( CORE_SITE )
+						.setSiteKitAutoUpdatesEnabled( undefined );
+				} ).toThrow( 'siteKitAutoUpdatesEnabled must be a boolean.' );
+
+				expect( () => {
+					registry
+						.dispatch( CORE_SITE )
+						.setSiteKitAutoUpdatesEnabled( 0 );
+				} ).toThrow( 'siteKitAutoUpdatesEnabled must be a boolean.' );
+
+				expect( () => {
+					registry
+						.dispatch( CORE_SITE )
+						.setSiteKitAutoUpdatesEnabled( true );
+
+					registry
+						.dispatch( CORE_SITE )
+						.setSiteKitAutoUpdatesEnabled( false );
+				} ).not.toThrow(
+					'siteKitAutoUpdatesEnabled must be a boolean.'
+				);
+			} );
+		} );
+
+		describe( 'setKeyMetricsSetupCompletedBy', () => {
+			it( 'sets the `keyMetricsSetupCompletedBy` property', () => {
+				registry
+					.dispatch( CORE_SITE )
+					.setKeyMetricsSetupCompletedBy( 123 );
+
+				expect(
+					store.getState().siteInfo.keyMetricsSetupCompletedBy
+				).toBe( 123 );
+			} );
+
+			it( 'requires a number argument', () => {
+				expect( () => {
+					registry
+						.dispatch( CORE_SITE )
+						.setKeyMetricsSetupCompletedBy();
+				} ).toThrow( 'keyMetricsSetupCompletedBy must be a number.' );
+
+				expect( () => {
+					registry
+						.dispatch( CORE_SITE )
+						.setKeyMetricsSetupCompletedBy( undefined );
+				} ).toThrow( 'keyMetricsSetupCompletedBy must be a number.' );
+
+				expect( () => {
+					registry
+						.dispatch( CORE_SITE )
+						.setKeyMetricsSetupCompletedBy( true );
+				} ).toThrow( 'keyMetricsSetupCompletedBy must be a number.' );
+
+				expect( () => {
+					registry
+						.dispatch( CORE_SITE )
+						.setKeyMetricsSetupCompletedBy( 1 );
+
+					registry
+						.dispatch( CORE_SITE )
+						.setKeyMetricsSetupCompletedBy( 0 );
+				} ).not.toThrow(
+					'keyMetricsSetupCompletedBy must be a number.'
+				);
+			} );
+		} );
+
+		describe( 'setSetupErrorCode', () => {
+			it( 'sets the `setupErrorCode` property', () => {
+				registry
+					.dispatch( CORE_SITE )
+					.setSetupErrorCode( 'error_code' );
+
+				expect( store.getState().siteInfo.setupErrorCode ).toBe(
+					'error_code'
+				);
+			} );
+
+			it( 'requires a string or null argument', () => {
+				expect( () => {
+					registry.dispatch( CORE_SITE ).setSetupErrorCode();
+				} ).toThrow( 'setupErrorCode must be a string or null.' );
+
+				expect( () => {
+					registry
+						.dispatch( CORE_SITE )
+						.setSetupErrorCode( undefined );
+				} ).toThrow( 'setupErrorCode must be a string or null.' );
+
+				expect( () => {
+					registry.dispatch( CORE_SITE ).setSetupErrorCode( true );
+				} ).toThrow( 'setupErrorCode must be a string or null.' );
+
+				expect( () => {
+					registry.dispatch( CORE_SITE ).setSetupErrorCode( 1 );
+				} ).toThrow( 'setupErrorCode must be a string or null.' );
+
+				expect( () => {
+					registry.dispatch( CORE_SITE ).setSetupErrorCode( null );
+
+					registry.dispatch( CORE_SITE ).setSetupErrorCode( 'error' );
+				} ).not.toThrow( 'setupErrorCode must be a string or null.' );
 			} );
 		} );
 	} );
@@ -81,136 +232,115 @@ describe( 'core/site site info', () => {
 	describe( 'selectors', () => {
 		describe( 'getAdminURL', () => {
 			it( 'returns the adminURL on its own if no page argument is supplied', async () => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( { ...baseInfo, ...entityInfo } );
+				await registry
+					.dispatch( CORE_SITE )
+					.receiveSiteInfo( { ...baseInfo, ...entityInfo } );
 
-				let adminURL = registry.select( STORE_NAME ).getAdminURL();
+				let adminURL = registry.select( CORE_SITE ).getAdminURL();
 				expect( adminURL ).toEqual( 'http://something.test/wp-admin' );
 
-				adminURL = registry.select( STORE_NAME ).getAdminURL( undefined, { arg1: 'argument-1', arg2: 'argument-2' } );
+				adminURL = registry
+					.select( CORE_SITE )
+					.getAdminURL( undefined, {
+						arg1: 'argument-1',
+						arg2: 'argument-2',
+					} );
 				expect( adminURL ).toEqual( 'http://something.test/wp-admin' );
 			} );
 
 			it( 'returns the adminURL with page query parameter if simple page argument is supplied', async () => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( { ...baseInfo, ...entityInfo } );
+				await registry
+					.dispatch( CORE_SITE )
+					.receiveSiteInfo( { ...baseInfo, ...entityInfo } );
 
-				const adminURL = registry.select( STORE_NAME ).getAdminURL( 'testpage' );
-				expect( adminURL ).toEqual( 'http://something.test/wp-admin/admin.php?page=testpage' );
+				const adminURL = registry
+					.select( CORE_SITE )
+					.getAdminURL( 'testpage' );
+				expect( adminURL ).toEqual(
+					'http://something.test/wp-admin/admin.php?page=testpage'
+				);
 			} );
 
 			it( 'returns the adminURL with page query parameter if the full page argument is supplied', async () => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( { ...baseInfo, ...entityInfo } );
+				await registry
+					.dispatch( CORE_SITE )
+					.receiveSiteInfo( { ...baseInfo, ...entityInfo } );
 
-				const adminURL = registry.select( STORE_NAME ).getAdminURL( 'custom.php?page=testpage' );
-				expect( adminURL ).toEqual( 'http://something.test/wp-admin/custom.php?page=testpage' );
+				const adminURL = registry
+					.select( CORE_SITE )
+					.getAdminURL( 'custom.php?page=testpage' );
+				expect( adminURL ).toEqual(
+					'http://something.test/wp-admin/custom.php?page=testpage'
+				);
 			} );
 
 			it( 'returns the original adminURL if the full page argument is supplied without "page" query param', async () => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( { ...baseInfo, ...entityInfo } );
+				await registry
+					.dispatch( CORE_SITE )
+					.receiveSiteInfo( { ...baseInfo, ...entityInfo } );
 
-				const adminURL = registry.select( STORE_NAME ).getAdminURL( 'custom.php?notpage=testpage' );
+				const adminURL = registry
+					.select( CORE_SITE )
+					.getAdminURL( 'custom.php?notpage=testpage' );
 				expect( adminURL ).toEqual( 'http://something.test/wp-admin' );
 			} );
 
 			it( 'properly handles the adminURLs with trailing slash', async () => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( { ...baseInfo, ...entityInfo, adminURL: 'http://something.test/wp-admin/' } );
+				await registry.dispatch( CORE_SITE ).receiveSiteInfo( {
+					...baseInfo,
+					...entityInfo,
+					adminURL: 'http://something.test/wp-admin/',
+				} );
 
-				const adminURL = registry.select( STORE_NAME ).getAdminURL( 'custom.php?page=testpage' );
-				expect( adminURL ).toEqual( 'http://something.test/wp-admin/custom.php?page=testpage' );
+				const adminURL = registry
+					.select( CORE_SITE )
+					.getAdminURL( 'custom.php?page=testpage' );
+				expect( adminURL ).toEqual(
+					'http://something.test/wp-admin/custom.php?page=testpage'
+				);
 			} );
 
 			it( 'returns the adminURL with page and extra query if page and args supplied', async () => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( { ...baseInfo, ...entityInfo } );
+				await registry
+					.dispatch( CORE_SITE )
+					.receiveSiteInfo( { ...baseInfo, ...entityInfo } );
 
-				const adminURL = registry.select( STORE_NAME ).getAdminURL( 'testpage', { arg1: 'argument-1', arg2: 'argument-2' } );
-				expect( adminURL ).toEqual( 'http://something.test/wp-admin/admin.php?page=testpage&arg1=argument-1&arg2=argument-2' );
+				const adminURL = registry
+					.select( CORE_SITE )
+					.getAdminURL( 'testpage', {
+						arg1: 'argument-1',
+						arg2: 'argument-2',
+					} );
+				expect( adminURL ).toEqual(
+					'http://something.test/wp-admin/admin.php?page=testpage&arg1=argument-1&arg2=argument-2'
+				);
 			} );
 
 			it( 'returns the adminURL with first page if an extra page is provided in the args', async () => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( { ...baseInfo, ...entityInfo } );
+				await registry
+					.dispatch( CORE_SITE )
+					.receiveSiteInfo( { ...baseInfo, ...entityInfo } );
 
-				const adminURL = registry.select( STORE_NAME ).getAdminURL( 'correct-page', { arg1: 'argument-1', arg2: 'argument-2', page: 'wrong-page' } );
-				expect( adminURL ).toEqual( 'http://something.test/wp-admin/admin.php?page=correct-page&arg1=argument-1&arg2=argument-2' );
+				const adminURL = registry
+					.select( CORE_SITE )
+					.getAdminURL( 'correct-page', {
+						arg1: 'argument-1',
+						arg2: 'argument-2',
+						page: 'wrong-page',
+					} );
+				expect( adminURL ).toEqual(
+					'http://something.test/wp-admin/admin.php?page=correct-page&arg1=argument-1&arg2=argument-2'
+				);
 			} );
 
 			it( 'returns undefined if adminURL is undefined', async () => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( {} );
+				await registry.dispatch( CORE_SITE ).receiveSiteInfo( {} );
 
-				const adminURL = registry.select( STORE_NAME ).getAdminURL();
+				const adminURL = registry.select( CORE_SITE ).getAdminURL();
+
+				await untilResolved( registry, CORE_SITE ).getSiteInfo();
 
 				expect( adminURL ).toEqual( undefined );
-			} );
-		} );
-
-		describe( 'getGoogleSupportURL', () => {
-			it.each( [
-				[
-					'returns null if no arguments are supplied',
-					undefined,
-					null,
-				],
-				[
-					'returns null if no path is supplied or is empty',
-					{
-						path: '',
-					},
-					null,
-				],
-				[
-					'returns the path, hash and the user locale',
-					{
-						path: '/analytics/answer/1032415',
-						hash: 'hash_value',
-					},
-					'https://support.google.com/analytics/answer/1032415?hl=en-US#hash_value',
-				],
-				[
-					'returns the path, query and the user locale',
-					{
-						path: '/analytics/answer/1032415',
-						query: {
-							param: 'value',
-							param2: 'value2',
-						},
-					},
-					'https://support.google.com/analytics/answer/1032415?param=value&param2=value2&hl=en-US',
-				],
-				[
-					'returns the path with the user locale',
-					{
-						path: '/analytics/answer/1032415',
-					},
-					'https://support.google.com/analytics/answer/1032415?hl=en-US',
-				],
-				[
-					'returns the path, query, hash and the user locale',
-					{
-						path: '/analytics/answer/1032415',
-						query: {
-							param: 'value',
-							param2: 'value2',
-						},
-						hash: 'hash_value',
-					},
-					'https://support.google.com/analytics/answer/1032415?param=value&param2=value2&hl=en-US#hash_value',
-				],
-			] )( '%s', async ( _, args, expected ) => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( { ...baseInfo, ...entityInfo } );
-				const supportURL = registry.select( STORE_NAME ).getGoogleSupportURL( args );
-				expect( supportURL ).toEqual( expected );
-			} );
-
-			it( 'returns the path with a predefined locale', async () => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( { ...baseInfo, ...entityInfo } );
-
-				if ( ! global._googlesitekitLegacyData ) {
-					global._googlesitekitLegacyData = {};
-				}
-				global._googlesitekitLegacyData.locale = 'de';
-
-				const supportURL = registry.select( STORE_NAME ).getGoogleSupportURL( {
-					path: '/analytics/answer/1032415',
-				} );
-				expect( supportURL ).toEqual( 'https://support.google.com/analytics/answer/1032415?hl=de' );
 			} );
 		} );
 
@@ -222,12 +352,16 @@ describe( 'core/site site info', () => {
 				expect( global[ baseInfoVar ] ).not.toEqual( undefined );
 				expect( global[ entityInfoVar ] ).not.toEqual( undefined );
 
-				registry.select( STORE_NAME ).getSiteInfo();
-				await untilResolved( registry, STORE_NAME ).getSiteInfo();
+				registry.select( CORE_SITE ).getSiteInfo();
+				await untilResolved( registry, CORE_SITE ).getSiteInfo();
 
-				const info = registry.select( STORE_NAME ).getSiteInfo();
+				const info = registry.select( CORE_SITE ).getSiteInfo();
 
-				expect( info ).toEqual( { ...baseInfo, ...entityInfo, currentEntityID: 4 } );
+				expect( info ).toEqual( {
+					...baseInfo,
+					...entityInfo,
+					currentEntityID: 4,
+				} );
 
 				// Data must not be wiped after retrieving, as it could be used by other dependants.
 				expect( global[ baseInfoVar ] ).not.toEqual( undefined );
@@ -238,7 +372,9 @@ describe( 'core/site site info', () => {
 				expect( global[ baseInfoVar ] ).toEqual( undefined );
 				expect( global[ entityInfoVar ] ).toEqual( undefined );
 
-				const info = registry.select( STORE_NAME ).getSiteInfo();
+				const info = registry.select( CORE_SITE ).getSiteInfo();
+
+				await untilResolved( registry, CORE_SITE ).getSiteInfo();
 
 				expect( info ).toBe( initialState.siteInfo );
 				expect( console ).toHaveErrored();
@@ -257,32 +393,52 @@ describe( 'core/site site info', () => {
 			[ 'getProxySetupURL', 'proxySetupURL' ],
 			[ 'getProxyPermissionsURL', 'proxyPermissionsURL' ],
 			[ 'getSiteName', 'siteName' ],
+			[ 'getSetupErrorCode', 'setupErrorCode' ],
+			[ 'getSetupErrorMessage', 'setupErrorMessage' ],
+			[ 'getSetupErrorRedoURL', 'setupErrorRedoURL' ],
+			[ 'getProxySupportLinkURL', 'proxySupportLinkURL' ],
+			[ 'getWidgetsAdminURL', 'widgetsAdminURL' ],
+			[ 'getWPVersion', 'wpVersion' ],
+			[ 'getUpdateCoreURL', 'updateCoreURL' ],
 			[ 'getTimezone', 'timezone' ],
+			[ 'getPostTypes', 'postTypes' ],
+			[ 'getKeyMetricsSetupCompletedBy', 'keyMetricsSetupCompletedBy' ],
+			[ 'getKeyMetricsSetupNew', 'keyMetricsSetupNew' ],
 			[ 'isUsingProxy', 'usingProxy' ],
 			[ 'isAMP', 'ampMode' ],
 			[ 'isPrimaryAMP', 'ampMode' ],
 			[ 'isSecondaryAMP', 'ampMode' ],
 			[ 'isWebStoriesActive', 'webStoriesActive' ],
-		] )( `%s`, ( selector, infoKey ) => {
+			[ 'getProductPostType', 'productPostType' ],
+			[ 'isKeyMetricsSetupCompleted', 'keyMetricsSetupCompletedBy' ],
+			[ 'getConsentModeRegions', 'consentModeRegions' ],
+			[ 'isMultisite', 'isMultisite' ],
+		] )( '%s', ( selector, infoKey ) => {
 			it( 'uses a resolver to load site info then returns the info when this specific selector is used', async () => {
 				global[ baseInfoVar ] = baseInfo;
 				global[ entityInfoVar ] = entityInfo;
 
-				registry.select( STORE_NAME )[ selector ]();
+				registry.select( CORE_SITE )[ selector ]();
 
-				await untilResolved( registry, STORE_NAME ).getSiteInfo();
+				await untilResolved( registry, CORE_SITE ).getSiteInfo();
 
-				const info = registry.select( STORE_NAME ).getSiteInfo();
+				const info = registry.select( CORE_SITE ).getSiteInfo();
 
 				expect( info ).toHaveProperty( infoKey );
-				expect( info ).toEqual( { ...baseInfo, ...entityInfo, currentEntityID: 4 } );
+				expect( info ).toEqual( {
+					...baseInfo,
+					...entityInfo,
+					currentEntityID: 4,
+				} );
 			} );
 
 			it( 'will return initial state (undefined) when no data is available', async () => {
 				expect( global[ baseInfoVar ] ).toEqual( undefined );
 				expect( global[ entityInfoVar ] ).toEqual( undefined );
 
-				const result = registry.select( STORE_NAME )[ selector ]();
+				const result = registry.select( CORE_SITE )[ selector ]();
+
+				await untilResolved( registry, CORE_SITE ).getSiteInfo();
 
 				expect( result ).toEqual( undefined );
 				expect( console ).toHaveErrored();
@@ -294,11 +450,11 @@ describe( 'core/site site info', () => {
 				global[ baseInfoVar ] = baseInfo;
 				global[ entityInfoVar ] = entityInfo;
 
-				registry.select( STORE_NAME ).isAMP();
+				registry.select( CORE_SITE ).isAMP();
 
-				await untilResolved( registry, STORE_NAME ).getSiteInfo();
+				await untilResolved( registry, CORE_SITE ).getSiteInfo();
 
-				const isAMP = registry.select( STORE_NAME ).isAMP();
+				const isAMP = registry.select( CORE_SITE ).isAMP();
 
 				expect( isAMP ).toEqual( true );
 			} );
@@ -310,10 +466,10 @@ describe( 'core/site site info', () => {
 				};
 				global[ entityInfoVar ] = entityInfo;
 
-				registry.select( STORE_NAME ).isAMP();
-				await untilResolved( registry, STORE_NAME ).getSiteInfo();
+				registry.select( CORE_SITE ).isAMP();
+				await untilResolved( registry, CORE_SITE ).getSiteInfo();
 
-				const isAMP = registry.select( STORE_NAME ).isAMP();
+				const isAMP = registry.select( CORE_SITE ).isAMP();
 
 				expect( isAMP ).toEqual( false );
 			} );
@@ -322,7 +478,9 @@ describe( 'core/site site info', () => {
 				expect( global[ baseInfoVar ] ).toEqual( undefined );
 				expect( global[ entityInfoVar ] ).toEqual( undefined );
 
-				const result = registry.select( STORE_NAME ).isAMP();
+				const result = registry.select( CORE_SITE ).isAMP();
+
+				await untilResolved( registry, CORE_SITE ).getSiteInfo();
 
 				expect( result ).toEqual( undefined );
 				expect( console ).toHaveErrored();
@@ -334,10 +492,12 @@ describe( 'core/site site info', () => {
 				global[ baseInfoVar ] = baseInfo;
 				global[ entityInfoVar ] = entityInfo;
 
-				registry.select( STORE_NAME ).getCurrentReferenceURL();
-				await untilResolved( registry, STORE_NAME ).getSiteInfo();
+				registry.select( CORE_SITE ).getCurrentReferenceURL();
+				await untilResolved( registry, CORE_SITE ).getSiteInfo();
 
-				const referenceURL = registry.select( STORE_NAME ).getCurrentReferenceURL();
+				const referenceURL = registry
+					.select( CORE_SITE )
+					.getCurrentReferenceURL();
 
 				expect( referenceURL ).toEqual( entityInfo.currentEntityURL );
 			} );
@@ -352,10 +512,12 @@ describe( 'core/site site info', () => {
 					currentEntityID: null,
 				};
 
-				registry.select( STORE_NAME ).getCurrentReferenceURL();
-				await untilResolved( registry, STORE_NAME ).getSiteInfo();
+				registry.select( CORE_SITE ).getCurrentReferenceURL();
+				await untilResolved( registry, CORE_SITE ).getSiteInfo();
 
-				const referenceURL = registry.select( STORE_NAME ).getCurrentReferenceURL();
+				const referenceURL = registry
+					.select( CORE_SITE )
+					.getCurrentReferenceURL();
 
 				expect( referenceURL ).toEqual( baseInfo.referenceSiteURL );
 			} );
@@ -363,34 +525,68 @@ describe( 'core/site site info', () => {
 
 		describe( 'isSiteURLMatch', () => {
 			beforeEach( async () => {
-				await registry.dispatch( STORE_NAME ).receiveSiteInfo( baseInfo );
+				await registry
+					.dispatch( CORE_SITE )
+					.receiveSiteInfo( baseInfo );
 			} );
 
 			it( 'should return TRUE when URL matches the reference site URL even if the protocol is different', () => {
-				expect( registry.select( STORE_NAME ).isSiteURLMatch( 'http://example.com' ) ).toBe( true );
-				expect( registry.select( STORE_NAME ).isSiteURLMatch( 'https://example.com' ) ).toBe( true );
+				expect(
+					registry
+						.select( CORE_SITE )
+						.isSiteURLMatch( 'http://example.com' )
+				).toBe( true );
+				expect(
+					registry
+						.select( CORE_SITE )
+						.isSiteURLMatch( 'https://example.com' )
+				).toBe( true );
 			} );
 
 			it( 'should return TRUE when URL matches the reference site URL with or without a www. subdomain', () => {
-				expect( registry.select( STORE_NAME ).isSiteURLMatch( 'http://example.com' ) ).toBe( true );
-				expect( registry.select( STORE_NAME ).isSiteURLMatch( 'http://www.example.com' ) ).toBe( true );
+				expect(
+					registry
+						.select( CORE_SITE )
+						.isSiteURLMatch( 'http://example.com' )
+				).toBe( true );
+				expect(
+					registry
+						.select( CORE_SITE )
+						.isSiteURLMatch( 'http://www.example.com' )
+				).toBe( true );
 			} );
 
 			it( 'should return TRUE when URL matches the reference site URL with or without a trailing slash', () => {
-				expect( registry.select( STORE_NAME ).isSiteURLMatch( 'http://example.com' ) ).toBe( true );
-				expect( registry.select( STORE_NAME ).isSiteURLMatch( 'http://example.com/' ) ).toBe( true );
+				expect(
+					registry
+						.select( CORE_SITE )
+						.isSiteURLMatch( 'http://example.com' )
+				).toBe( true );
+				expect(
+					registry
+						.select( CORE_SITE )
+						.isSiteURLMatch( 'http://example.com/' )
+				).toBe( true );
 			} );
 
 			it( 'should return FALSE when URL does not match the reference site URL', () => {
-				expect( registry.select( STORE_NAME ).isSiteURLMatch( 'http://example.org/' ) ).toBe( false );
+				expect(
+					registry
+						.select( CORE_SITE )
+						.isSiteURLMatch( 'http://example.org/' )
+				).toBe( false );
 			} );
 		} );
 
 		describe( 'getSiteURLPermutations', () => {
 			it( 'should correctly process regular URL', () => {
-				provideSiteInfo( registry, { referenceSiteURL: 'http://www.example.com' } );
+				provideSiteInfo( registry, {
+					referenceSiteURL: 'http://www.example.com',
+				} );
 
-				expect( registry.select( STORE_NAME ).getSiteURLPermutations() ).toEqual( [
+				expect(
+					registry.select( CORE_SITE ).getSiteURLPermutations()
+				).toEqual( [
 					'http://example.com',
 					'https://example.com',
 					'https://www.example.com',
@@ -399,9 +595,13 @@ describe( 'core/site site info', () => {
 			} );
 
 			it( 'should correctly process URL with a port number', () => {
-				provideSiteInfo( registry, { referenceSiteURL: 'http://example.com:9000/' } );
+				provideSiteInfo( registry, {
+					referenceSiteURL: 'http://example.com:9000/',
+				} );
 
-				expect( registry.select( STORE_NAME ).getSiteURLPermutations() ).toEqual( [
+				expect(
+					registry.select( CORE_SITE ).getSiteURLPermutations()
+				).toEqual( [
 					'http://example.com:9000',
 					'https://example.com:9000',
 					'https://www.example.com:9000',
@@ -410,9 +610,13 @@ describe( 'core/site site info', () => {
 			} );
 
 			it( 'should correctly process URL with basic authentication', () => {
-				provideSiteInfo( registry, { referenceSiteURL: 'http://admin:password@example.com:9000/' } );
+				provideSiteInfo( registry, {
+					referenceSiteURL: 'http://admin:password@example.com:9000/',
+				} );
 
-				expect( registry.select( STORE_NAME ).getSiteURLPermutations() ).toEqual( [
+				expect(
+					registry.select( CORE_SITE ).getSiteURLPermutations()
+				).toEqual( [
 					'http://admin:password@example.com:9000',
 					'https://admin:password@example.com:9000',
 					'https://admin:password@www.example.com:9000',
@@ -421,14 +625,76 @@ describe( 'core/site site info', () => {
 			} );
 
 			it( 'should correctly process URL with subdirectory install', () => {
-				provideSiteInfo( registry, { referenceSiteURL: 'http://www.example.com/subsite/' } );
+				provideSiteInfo( registry, {
+					referenceSiteURL: 'http://www.example.com/subsite/',
+				} );
 
-				expect( registry.select( STORE_NAME ).getSiteURLPermutations() ).toEqual( [
+				expect(
+					registry.select( CORE_SITE ).getSiteURLPermutations()
+				).toEqual( [
 					'http://example.com/subsite',
 					'https://example.com/subsite',
 					'https://www.example.com/subsite',
 					'http://www.example.com/subsite',
 				] );
+			} );
+		} );
+
+		describe( 'hasMinimumWordPressVersion', () => {
+			it( 'should throw an error if the `minimumWPVersion` parameter is missing', () => {
+				provideSiteInfo( registry );
+
+				expect( () =>
+					registry.select( CORE_SITE ).hasMinimumWordPressVersion()
+				).toThrow( 'minimumWPVersion is required.' );
+			} );
+
+			it( 'should return `undefined` if the `version` property is not available', () => {
+				provideSiteInfo( registry );
+
+				expect(
+					registry
+						.select( CORE_SITE )
+						.hasMinimumWordPressVersion( '5.2' )
+				).toBeUndefined();
+			} );
+
+			it( 'should return `false` if the WordPress version is lesser than the provided version', () => {
+				provideSiteInfo( registry, {
+					wpVersion: {
+						major: 5,
+						minor: 0,
+						version: '5.0.0',
+					},
+				} );
+
+				expect(
+					registry
+						.select( CORE_SITE )
+						.hasMinimumWordPressVersion( '5.2' )
+				).toBe( false );
+			} );
+
+			it( 'should return `true` if the WordPress version is the same or higher than the provided version', () => {
+				provideSiteInfo( registry, {
+					wpVersion: {
+						major: 5,
+						minor: 2,
+						version: '5.2.0',
+					},
+				} );
+
+				expect(
+					registry
+						.select( CORE_SITE )
+						.hasMinimumWordPressVersion( '5.2' )
+				).toBe( true );
+
+				expect(
+					registry
+						.select( CORE_SITE )
+						.hasMinimumWordPressVersion( '5.1' )
+				).toBe( true );
 			} );
 		} );
 	} );

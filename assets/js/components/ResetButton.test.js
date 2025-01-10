@@ -24,7 +24,14 @@ import { ESCAPE } from '@wordpress/keycodes';
 /**
  * Internal dependencies
  */
-import { render, createTestRegistry, fireEvent, act, provideSiteInfo } from '../../../tests/js/test-utils';
+import {
+	render,
+	createTestRegistry,
+	fireEvent,
+	act,
+	provideSiteInfo,
+	waitFor,
+} from '../../../tests/js/test-utils';
 import { CORE_SITE } from '../googlesitekit/datastore/site/constants';
 import ResetButton from './ResetButton';
 import { subscribeUntil } from '../../../tests/js/utils';
@@ -44,7 +51,7 @@ describe( 'ResetButton', () => {
 					configurable: true,
 					value: locationAssignMock,
 				},
-			},
+			}
 		);
 	} );
 
@@ -63,51 +70,114 @@ describe( 'ResetButton', () => {
 	} );
 
 	it( 'should render passed children inside of the button', () => {
-		const { container } = render( <ResetButton>Test Value</ResetButton>, { registry } );
+		const { container } = render( <ResetButton>Test Value</ResetButton>, {
+			registry,
+		} );
 		expect( container ).toHaveTextContent( 'Test Value' );
-		expect( document.querySelector( '.mdc-dialog--open' ) ).not.toBeInTheDocument();
+		expect(
+			document.querySelector( '.mdc-dialog--open' )
+		).not.toBeInTheDocument();
 	} );
 
 	describe( 'after click', () => {
 		let container;
-		beforeEach( () => {
+		beforeEach( async () => {
 			container = render( <ResetButton />, { registry } ).container;
-			fireEvent.click( container.querySelector( '.googlesitekit-reset-button' ) );
+			fireEvent.click(
+				container.querySelector( '.googlesitekit-reset-button' )
+			);
+
+			await waitFor( () => {
+				expect(
+					document.querySelector( '.mdc-dialog--open' )
+				).toBeInTheDocument();
+			} );
 		} );
 
-		it( 'should open the dialog', async () => {
-			expect( document.querySelector( '.mdc-dialog--open' ) ).toBeInTheDocument();
+		it( 'should open the dialog', () => {
+			expect( document.querySelector( '.mdc-dialog' ) ).toHaveClass(
+				'mdc-dialog--open'
+			);
 		} );
 
-		it( 'should show reset and cancel buttons', async () => {
-			expect( document.querySelector( '.mdc-dialog--open .mdc-dialog__cancel-button' ) ).toBeInTheDocument();
-			expect( document.querySelector( '.mdc-dialog--open .mdc-button--danger' ) ).toBeInTheDocument();
+		it( 'should show reset and cancel buttons', () => {
+			expect(
+				document.querySelector(
+					'.mdc-dialog--open .mdc-dialog__cancel-button'
+				)
+			).toBeInTheDocument();
+			expect(
+				document.querySelector(
+					'.mdc-dialog--open .mdc-button--danger'
+				)
+			).toBeInTheDocument();
 		} );
 
 		it( 'should close the modal on clicking cancel', async () => {
-			fireEvent.click( document.querySelector( '.mdc-dialog--open .mdc-dialog__cancel-button' ) );
-			expect( document.querySelector( '.mdc-dialog--open' ) ).not.toBeInTheDocument();
+			fireEvent.click(
+				document.querySelector(
+					'.mdc-dialog--open .mdc-dialog__cancel-button'
+				)
+			);
+
+			await waitFor( () => {
+				expect(
+					document.querySelector( '.mdc-dialog--closing' )
+				).not.toBeInTheDocument();
+			} );
+
+			expect(
+				document.querySelector( '.mdc-dialog--open' )
+			).not.toBeInTheDocument();
+
+			// Verify that none of .mdc-dialog--opening, .mdc-dialog--open or .mdc-dialog--closing are applied to the .mdc-dialog element.
+			expect(
+				document.querySelector( '.mdc-dialog' ).classList.length
+			).toBe( 2 );
 		} );
 
 		it( 'should close the modal on pressing escape key', async () => {
 			fireEvent.keyUp( global, { keyCode: ESCAPE } );
-			expect( document.querySelector( '.mdc-dialog--open' ) ).not.toBeInTheDocument();
+
+			await waitFor( () => {
+				expect(
+					document.querySelector( '.mdc-dialog--closing' )
+				).not.toBeInTheDocument();
+			} );
+
+			expect(
+				document.querySelector( '.mdc-dialog--open' )
+			).not.toBeInTheDocument();
+
+			// Verify that none of .mdc-dialog--opening, .mdc-dialog--open or .mdc-dialog--closing are applied to the .mdc-dialog element.
+			expect(
+				document.querySelector( '.mdc-dialog' ).classList.length
+			).toBe( 2 );
 		} );
 
 		it( 'should reset the plugin, delete local and session storage', async () => {
 			const response = true;
 			fetchMock.postOnce(
-				/^\/google-site-kit\/v1\/core\/site\/data\/reset/,
-				{ body: JSON.stringify( response ), status: 200 },
+				new RegExp( '^/google-site-kit/v1/core/site/data/reset' ),
+				{ body: JSON.stringify( response ), status: 200 }
 			);
 
 			await act( async () => {
-				fireEvent.click( document.querySelector( '.mdc-dialog--open .mdc-button--danger' ) );
-				await subscribeUntil( registry, () => registry.select( CORE_SITE ).isDoingReset() === false );
+				fireEvent.click(
+					document.querySelector(
+						'.mdc-dialog--open .mdc-button--danger'
+					)
+				);
+				await subscribeUntil(
+					registry,
+					() => registry.select( CORE_SITE ).isDoingReset() === false
+				);
 			} );
 
 			expect( fetchMock ).toHaveFetchedTimes( 1 );
-			expect( document.querySelector( '.mdc-dialog--open' ) ).toBeInTheDocument();
+			expect(
+				document.querySelector( '.mdc-dialog--open' )
+			).toBeInTheDocument();
 			expect( localStorage.clear ).toHaveBeenCalled();
 			expect( sessionStorage.clear ).toHaveBeenCalled();
 

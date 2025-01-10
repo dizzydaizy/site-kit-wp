@@ -17,6 +17,11 @@
  */
 
 /**
+ * External dependencies
+ */
+import PropTypes from 'prop-types';
+
+/**
  * WordPress dependencies
  */
 import { useCallback } from '@wordpress/element';
@@ -25,39 +30,76 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import { STORE_NAME } from '../../datastore/constants';
+import { Option, Select } from 'googlesitekit-components';
+import { useSelect, useDispatch } from 'googlesitekit-data';
+import {
+	CONTAINER_CREATE,
+	MODULES_TAGMANAGER,
+} from '../../datastore/constants';
 import { CORE_SITE } from '../../../../googlesitekit/datastore/site/constants';
 import ContainerSelect from './ContainerSelect';
-const { useSelect, useDispatch } = Data;
+import { trackEvent } from '../../../../util/tracking';
+import useViewContext from '../../../../hooks/useViewContext';
 
-export default function WebContainerSelect() {
-	const accountID = useSelect( ( select ) => select( STORE_NAME ).getAccountID() );
-	const containerID = useSelect( ( select ) => select( STORE_NAME ).getContainerID() );
-	const containers = useSelect( ( select ) => select( STORE_NAME ).getWebContainers( accountID ) );
-	const isPrimaryAMP = useSelect( ( select ) => select( CORE_SITE ).isPrimaryAMP() );
-	const isSecondaryAMP = useSelect( ( select ) => select( CORE_SITE ).isSecondaryAMP() );
+export default function WebContainerSelect( { hasModuleAccess } ) {
+	const viewContext = useViewContext();
 
-	const { setContainerID, setInternalContainerID } = useDispatch( STORE_NAME );
-	const onSelect = useCallback( ( index, item ) => {
-		const {
-			value: newContainerID,
-			// eslint-disable-next-line sitekit/acronym-case
-			internalId: newInternalContainerID,
-		} = item.dataset;
-		if ( containerID !== newContainerID ) {
-			setContainerID( newContainerID );
-			setInternalContainerID( newInternalContainerID || '' );
+	const accountID = useSelect( ( select ) =>
+		select( MODULES_TAGMANAGER ).getAccountID()
+	);
+	const containerID = useSelect( ( select ) =>
+		select( MODULES_TAGMANAGER ).getContainerID()
+	);
+	const containers = useSelect( ( select ) => {
+		if ( hasModuleAccess === false ) {
+			return null;
 		}
-	}, [ containerID, setContainerID, setInternalContainerID ] );
 
-	if ( isPrimaryAMP ) {
-		return null;
-	}
+		return select( MODULES_TAGMANAGER ).getWebContainers( accountID );
+	} );
+	const isAMP = useSelect( ( select ) => select( CORE_SITE ).isAMP() );
 
-	const label = isSecondaryAMP
+	const { setContainerID, setInternalContainerID } =
+		useDispatch( MODULES_TAGMANAGER );
+	const onSelect = useCallback(
+		( index, item ) => {
+			const {
+				value: newContainerID,
+				// eslint-disable-next-line sitekit/acronym-case
+				internalId: newInternalContainerID,
+			} = item.dataset;
+			if ( containerID !== newContainerID ) {
+				const eventAction =
+					newContainerID === CONTAINER_CREATE
+						? 'change_container_new'
+						: 'change_container';
+				trackEvent( `${ viewContext }_tagmanager`, eventAction );
+
+				setContainerID( newContainerID );
+				setInternalContainerID( newInternalContainerID || '' );
+			}
+		},
+		[ containerID, setContainerID, setInternalContainerID, viewContext ]
+	);
+
+	const label = isAMP
 		? __( 'Web Container', 'google-site-kit' )
 		: __( 'Container', 'google-site-kit' );
+
+	if ( hasModuleAccess === false ) {
+		return (
+			<Select
+				className="googlesitekit-tagmanager__select-container--web"
+				label={ label }
+				value={ containerID }
+				enhanced
+				outlined
+				disabled
+			>
+				<Option value={ containerID }>{ containerID }</Option>
+			</Select>
+		);
+	}
 
 	return (
 		<ContainerSelect
@@ -69,3 +111,7 @@ export default function WebContainerSelect() {
 		/>
 	);
 }
+
+WebContainerSelect.propTypes = {
+	hasModuleAccess: PropTypes.bool,
+};

@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-export const STORE_NAME = 'modules/pagespeed-insights';
-export { STORE_NAME as MODULES_PAGESPEED_INSIGHTS };
+export const MODULES_PAGESPEED_INSIGHTS = 'modules/pagespeed-insights';
 
 // Report strategies.
 export const STRATEGY_MOBILE = 'mobile';
@@ -25,6 +24,7 @@ export const STRATEGY_DESKTOP = 'desktop';
 // Report data sources.
 export const DATA_SRC_LAB = 'data_lab';
 export const DATA_SRC_FIELD = 'data_field';
+export const DATA_SRC_RECOMMENDATIONS = 'data_recommendations';
 
 // Dashboard widgets using the UI store.
 export const UI_STRATEGY = 'dashboardPageSpeedWidgetStrategy';

@@ -8,17 +8,16 @@
  * @link      https://sitekit.withgoogle.com
  */
 
-use Isolated\Symfony\Component\Finder\Finder;
+use Symfony\Component\Finder\Finder;
 
 // Google API services to include classes for.
 $google_services = implode(
 	'|',
 	array(
-		'Analytics',
-		'AnalyticsReporting',
-		'AdSense',
+		'Adsense',
+		'AnalyticsData',
 		'GoogleAnalyticsAdmin',
-		'Pagespeedonline',
+		'PagespeedInsights',
 		'PeopleService',
 		'SearchConsole',
 		'SiteVerification',
@@ -45,14 +44,17 @@ return array(
 					'vendor-bin',
 				)
 			)
-			->path( '#^firebase/#' )
+			->path( '#^firebase/php-jwt#' )
 			->path( '#^google/apiclient/#' )
 			->path( '#^google/auth/#' )
 			->path( '#^guzzlehttp/#' )
 			->path( '#^monolog/#' )
+			->path( '#^phpseclib/phpseclib/phpseclib/#' )
 			->path( '#^psr/#' )
 			->path( '#^ralouphie/#' )
 			->path( '#^react/#' )
+			->path( '#^symfony/#' )
+			->path( '#^true/#' )
 			->in( 'vendor' ),
 
 		// Google API service infrastructure classes.
@@ -70,7 +72,7 @@ return array(
 					'vendor-bin',
 				)
 			)
-			->path( "#^google/apiclient-services/src/Google/Service/($google_services)/#" )
+			->path( "#^google/apiclient-services/src/($google_services)/#" )
 			->in( 'vendor' ),
 
 		// Google API service entry classes.
@@ -79,32 +81,67 @@ return array(
 			->ignoreVCS( true )
 			->name( "#^($google_services)\.php$#" )
 			->depth( '== 0' )
-			->in( 'vendor/google/apiclient-services/src/Google/Service' ),
+			->in( 'vendor/google/apiclient-services/src' ),
+		Finder::create()
+			->files()
+			->ignoreVCS( true )
+			->name( '#^autoload.php$#' )
+			->depth( '== 0' )
+			->in( 'vendor/google/apiclient-services' ),
+		// Temporary SwG client.
+		Finder::create()
+		->files()
+		->name( '#\.php$#' )
+		->in( 'vendor/google/apiclient-services-subscribewithgoogle' ),
+
+		// Temporary support for `GoogleAnalyticsAdminV1alphaAdSenseLink` as it doesn't exist in the API client yet.
+		Finder::create()
+			->files()
+			->name( '#\.php$#' )
+			->in( 'vendor/google/apiclient-services-adsenselinks' ),
 	),
 	'files-whitelist'            => array(
-
 		// This dependency is a global function which should remain global.
 		'vendor/ralouphie/getallheaders/src/getallheaders.php',
 	),
 	'patchers'                   => array(
-		function( $file_path, $prefix, $contents ) {
+		function ( $file_path, $prefix, $contents ) {
+			// Avoid prefixing the `static` keyword in some places.
+			$contents = str_replace( "\\$prefix\\static", 'static', $contents );
+
 			if ( preg_match( '#google/apiclient/src/Google/Http/REST\.php$#', $file_path ) ) {
 				$contents = str_replace( "\\$prefix\\intVal", '\\intval', $contents );
 			}
 			if ( false !== strpos( $file_path, 'vendor/google/apiclient/' ) || false !== strpos( $file_path, 'vendor/google/auth/' ) ) {
-				$prefix   = str_replace( '\\', '\\\\', $prefix );
-				$contents = str_replace( "'\\\\GuzzleHttp\\\\ClientInterface", "'\\\\" . $prefix . '\\\\GuzzleHttp\\\\ClientInterface', $contents );
-				$contents = str_replace( '"\\\\GuzzleHttp\\\\ClientInterface', '"\\\\' . $prefix . '\\\\GuzzleHttp\\\\ClientInterface', $contents );
-				$contents = str_replace( "'GuzzleHttp\\\\ClientInterface", "'" . $prefix . '\\\\GuzzleHttp\\\\ClientInterface', $contents );
-				$contents = str_replace( '"GuzzleHttp\\\\ClientInterface', '"' . $prefix . '\\\\GuzzleHttp\\\\ClientInterface', $contents );
+				// Use modified prefix just for this patch.
+				$s_prefix = str_replace( '\\', '\\\\', $prefix );
+				$contents = str_replace( "'\\\\GuzzleHttp\\\\ClientInterface", "'\\\\" . $s_prefix . '\\\\GuzzleHttp\\\\ClientInterface', $contents );
+				$contents = str_replace( '"\\\\GuzzleHttp\\\\ClientInterface', '"\\\\' . $s_prefix . '\\\\GuzzleHttp\\\\ClientInterface', $contents );
+				$contents = str_replace( "'GuzzleHttp\\\\ClientInterface", "'" . $s_prefix . '\\\\GuzzleHttp\\\\ClientInterface', $contents );
+				$contents = str_replace( '"GuzzleHttp\\\\ClientInterface', '"' . $s_prefix . '\\\\GuzzleHttp\\\\ClientInterface', $contents );
 			}
 			if ( false !== strpos( $file_path, 'vendor/google/apiclient/' ) ) {
 				$contents = str_replace( "'Google_", "'" . $prefix . '\Google_', $contents );
 				$contents = str_replace( '"Google_', '"' . $prefix . '\Google_', $contents );
 			}
-			if ( false !== strpos( $file_path, 'vendor/google/apiclient-services/' ) ) {
-				$contents = str_replace( "'Google_Service_", "'" . $prefix . '\Google_Service_', $contents );
-				$contents = str_replace( '"Google_Service_', '"' . $prefix . '\Google_Service_', $contents );
+			if ( false !== strpos( $file_path, 'apiclient-services-adsenselinks' ) ) {
+				// Rewrite "Class_Name" to Class_Name::class to inherit namespace.
+				$contents = preg_replace( '/"(Google_[^"]+)"/', '\\1::class', $contents );
+			}
+			if ( false !== strpos( $file_path, 'phpseclib' ) ) {
+				// Use modified prefix just for this patch.
+				$s_prefix = str_replace( '\\', '\\\\', $prefix );
+				$contents = str_replace( "'phpseclib3\\\\", "'\\\\" . $s_prefix . '\\\\phpseclib3\\\\', $contents );
+				$contents = str_replace( "'\\\\phpseclib3", "'\\\\" . $s_prefix . '\\\\phpseclib3', $contents );
+			}
+
+			if (
+				// Bootstrap files polyfill global functions using namespaced implementations.
+				preg_match( '#vendor/symfony/polyfill-.*/bootstrap\.php$#', $file_path )
+				// The classes under Resources/stubs polyfill classes in the global namespace loaded via classmap.
+				|| preg_match( '#vendor/symfony/polyfill-.*/Resources/stubs/.*\.php$#', $file_path )
+			) {
+				$contents = str_replace( "namespace $prefix;", "/* namespace $prefix intentionally removed */", $contents );
 			}
 			return $contents;
 		},

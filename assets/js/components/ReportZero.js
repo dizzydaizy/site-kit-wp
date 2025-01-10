@@ -29,28 +29,30 @@ import { __, sprintf } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
+import { useSelect } from 'googlesitekit-data';
 import { CORE_MODULES } from '../googlesitekit/modules/datastore/constants';
-import CTA from './legacy-notifications/cta';
-
-const { useSelect } = Data;
+import CTA from './notifications/CTA';
 
 export default function ReportZero( { moduleSlug } ) {
-	const module = useSelect( ( select ) => select( CORE_MODULES ).getModule( moduleSlug ) );
+	const module = useSelect( ( select ) =>
+		select( CORE_MODULES ).getModule( moduleSlug )
+	);
 
 	return (
 		<CTA
-			title={
+			title={ sprintf(
 				/* translators: %s: Module name */
-				sprintf( __( '%s Gathering Data', 'google-site-kit' ), module?.name )
-			}
-			description={
-				sprintf(
-					/* translators: %s: Module name */
-					__( '%s data is not yet available, please check back later', 'google-site-kit' ),
-					module?.name
-				)
-			}
+				__( '%s Gathering Data', 'google-site-kit' ),
+				module?.name
+			) }
+			description={ sprintf(
+				/* translators: %s: Module name */
+				__(
+					'%s data is not yet available, please check back later',
+					'google-site-kit'
+				),
+				module?.name
+			) }
 		/>
 	);
 }

@@ -19,7 +19,12 @@
 /**
  * External dependencies
  */
-import each from 'lodash/each';
+import { each } from 'lodash';
+
+/*
+ * Internal dependencies
+ */
+import { stringToDate } from '../../../util';
 
 export * from './is-zero-report';
 export * from './parsing';
@@ -39,12 +44,12 @@ export function reduceAdSenseData( rows ) {
 	];
 
 	each( rows, ( row ) => {
-		const date = new Date( row[ 0 ] );
+		const date = stringToDate( row.cells[ 0 ].value );
 		dataMap.push( [
 			date,
-			row[ 2 ],
-			row[ 1 ],
-			row[ 3 ],
+			row.cells[ 2 ].value,
+			row.cells[ 1 ].value,
+			row.cells[ 3 ].value,
 		] );
 	} );
 
@@ -52,32 +57,3 @@ export function reduceAdSenseData( rows ) {
 		dataMap,
 	};
 }
-
-/**
- * Checks for any value higher than 0 in values from AdSense data.
- *
- * @since 1.0.0
- *
- * @param {Array}  adSenseData Data returned from the AdSense.
- * @param {string} datapoint   Datapoint requested.
- * @param {Object} dataRequest Request data object.
- * @return {boolean} Whether or not AdSense data is considered zero data.
- */
-export const isDataZeroAdSense = ( adSenseData, datapoint, dataRequest ) => {
-	// We only check the last 28 days of earnings because it is the most reliable data point to identify new setups:
-	// only new accounts or accounts not showing ads would have zero earnings in the last 28 days.
-	if ( ! dataRequest.data || ! dataRequest.data.dateRange || 'last-28-days' !== dataRequest.data.dateRange ) {
-		return false;
-	}
-
-	let totals = [];
-	if ( adSenseData.totals ) {
-		totals = adSenseData.totals;
-	}
-
-	// Look for any value > 0.
-	totals = totals.filter( ( total ) => {
-		return 0 < total;
-	} );
-	return 0 === totals.length;
-};

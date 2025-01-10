@@ -24,7 +24,7 @@ import { createRegistry } from '@wordpress/data';
 /**
  * Internal dependencies.
  */
-import Data from 'googlesitekit-data';
+import { commonStore, combineStores } from 'googlesitekit-data';
 import { createErrorStore } from '../data/create-error-store';
 import { createSubmitChangesStore } from './create-submit-changes-store';
 
@@ -37,12 +37,13 @@ describe( 'createSubmitChangesStore', () => {
 			expect( actions ).not.toBeUndefined();
 		} );
 
-		test.each( [
-			[ 'submitChanges' ],
-		] )( 'should have %s action', ( selector ) => {
-			const { actions } = createSubmitChangesStore();
-			expect( typeof actions[ selector ] ).toBe( 'function' );
-		} );
+		test.each( [ [ 'submitChanges' ] ] )(
+			'should have %s action',
+			( selector ) => {
+				const { actions } = createSubmitChangesStore();
+				expect( typeof actions[ selector ] ).toBe( 'function' );
+			}
+		);
 
 		describe( 'submitChanges', () => {
 			it( 'should use provided submitChanges function', async () => {
@@ -52,11 +53,11 @@ describe( 'createSubmitChangesStore', () => {
 				const registry = createRegistry();
 				registry.registerStore(
 					storeName,
-					Data.combineStores(
-						Data.commonStore,
+					combineStores(
+						commonStore,
 						createSubmitChangesStore( { submitChanges } ),
-						createErrorStore(),
-					),
+						createErrorStore( storeName )
+					)
 				);
 
 				await registry.dispatch( storeName ).submitChanges();
@@ -71,16 +72,26 @@ describe( 'createSubmitChangesStore', () => {
 				const registry = createRegistry();
 				registry.registerStore(
 					storeName,
-					Data.combineStores(
-						Data.commonStore,
-						createSubmitChangesStore( { submitChanges: async () => ( { error } ) } ),
-						createErrorStore(),
-					),
+					combineStores(
+						commonStore,
+						createSubmitChangesStore( {
+							submitChanges: () => ( { error } ),
+						} ),
+						createErrorStore( storeName )
+					)
 				);
 
-				expect( registry.select( storeName ).getErrorForAction( 'submitChanges' ) ).toBeUndefined();
+				expect(
+					registry
+						.select( storeName )
+						.getErrorForAction( 'submitChanges' )
+				).toBeUndefined();
 				await registry.dispatch( storeName ).submitChanges();
-				expect( registry.select( storeName ).getErrorForAction( 'submitChanges' ) ).toEqual( error );
+				expect(
+					registry
+						.select( storeName )
+						.getErrorForAction( 'submitChanges' )
+				).toEqual( error );
 			} );
 
 			it( 'should reset error on subsequent dispatching', async () => {
@@ -91,20 +102,34 @@ describe( 'createSubmitChangesStore', () => {
 				const registry = createRegistry();
 				registry.registerStore(
 					storeName,
-					Data.combineStores(
-						Data.commonStore,
-						createSubmitChangesStore( { submitChanges: async () => ( { error } ) } ),
-						createErrorStore(),
-					),
+					combineStores(
+						commonStore,
+						createSubmitChangesStore( {
+							submitChanges: () => ( { error } ),
+						} ),
+						createErrorStore( storeName )
+					)
 				);
 
-				expect( registry.select( storeName ).getErrorForAction( 'submitChanges' ) ).toBeUndefined();
+				expect(
+					registry
+						.select( storeName )
+						.getErrorForAction( 'submitChanges' )
+				).toBeUndefined();
 				await registry.dispatch( storeName ).submitChanges();
-				expect( registry.select( storeName ).getErrorForAction( 'submitChanges' ) ).toEqual( error );
+				expect(
+					registry
+						.select( storeName )
+						.getErrorForAction( 'submitChanges' )
+				).toEqual( error );
 
 				error = undefined;
 				await registry.dispatch( storeName ).submitChanges();
-				expect( registry.select( storeName ).getErrorForAction( 'submitChanges' ) ).toBeUndefined();
+				expect(
+					registry
+						.select( storeName )
+						.getErrorForAction( 'submitChanges' )
+				).toBeUndefined();
 			} );
 		} );
 	} );
@@ -130,9 +155,15 @@ describe( 'createSubmitChangesStore', () => {
 		] )( '%s', ( selector ) => {
 			it( 'should use provided validateCanSubmitChanges function', () => {
 				const validateCanSubmitChanges = jest.fn();
-				const { selectors } = createSubmitChangesStore( { validateCanSubmitChanges } );
+				const store = createSubmitChangesStore( {
+					validateCanSubmitChanges,
+				} );
 
-				selectors[ selector ]();
+				const registry = createRegistry();
+				registry.registerStore( storeName, store );
+
+				store.selectors[ selector ]();
+
 				expect( validateCanSubmitChanges ).toHaveBeenCalled();
 			} );
 		} );
@@ -141,41 +172,53 @@ describe( 'createSubmitChangesStore', () => {
 			it( 'should be set to FALSE by default', () => {
 				const registry = createRegistry();
 				registry.registerStore( storeName, createSubmitChangesStore() );
-				expect( registry.select( storeName ).isDoingSubmitChanges() ).toBe( false );
+				expect(
+					registry.select( storeName ).isDoingSubmitChanges()
+				).toBe( false );
 			} );
 
-			it( `should be set to TRUE after starting submiting changes`, async () => {
+			it( 'should be set to TRUE after starting submiting changes', async () => {
 				const registry = createRegistry();
 
 				registry.registerStore(
 					storeName,
-					Data.combineStores(
-						Data.commonStore,
-						createErrorStore(),
-						createSubmitChangesStore( { submitChanges: async () => {
-							expect( registry.select( storeName ).isDoingSubmitChanges() ).toBe( true );
-							return {};
-						} } ),
-					),
+					combineStores(
+						commonStore,
+						createErrorStore( storeName ),
+						createSubmitChangesStore( {
+							submitChanges: () => {
+								expect(
+									registry
+										.select( storeName )
+										.isDoingSubmitChanges()
+								).toBe( true );
+								return {};
+							},
+						} )
+					)
 				);
 
 				await registry.dispatch( storeName ).submitChanges();
 			} );
 
-			it( `should be set to FALSE after finishing submitting changes`, async () => {
+			it( 'should be set to FALSE after finishing submitting changes', async () => {
 				const registry = createRegistry();
 
 				registry.registerStore(
 					storeName,
-					Data.combineStores(
-						Data.commonStore,
-						createSubmitChangesStore( { submitChanges: async () => ( {} ) } ),
-						createErrorStore(),
-					),
+					combineStores(
+						commonStore,
+						createSubmitChangesStore( {
+							submitChanges: () => ( {} ),
+						} ),
+						createErrorStore( storeName )
+					)
 				);
 
 				await registry.dispatch( storeName ).submitChanges();
-				expect( registry.select( storeName ).isDoingSubmitChanges() ).toBe( false );
+				expect(
+					registry.select( storeName ).isDoingSubmitChanges()
+				).toBe( false );
 			} );
 		} );
 	} );

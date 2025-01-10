@@ -24,10 +24,9 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
+import { useSelect } from 'googlesitekit-data';
 import { CORE_USER } from '../../googlesitekit/datastore/user/constants';
-import Notification from '../legacy-notifications/notification';
-const { useSelect } = Data;
+import BannerNotification from './BannerNotification';
 
 export default function AuthError() {
 	const error = useSelect( ( select ) => select( CORE_USER ).getAuthError() );
@@ -36,9 +35,12 @@ export default function AuthError() {
 	}
 
 	return (
-		<Notification
+		<BannerNotification
 			id="autherror"
-			title={ __( 'Site Kit can’t access necessary data', 'google-site-kit' ) }
+			title={ __(
+				'Site Kit can’t access necessary data',
+				'google-site-kit'
+			) }
 			description={ error.message }
 			ctaLink={ error.data.reconnectURL }
 			ctaLabel={ __( 'Redo the plugin setup', 'google-site-kit' ) }

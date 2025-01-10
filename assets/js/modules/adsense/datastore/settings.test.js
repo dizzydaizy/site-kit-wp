@@ -20,19 +20,18 @@
  * Internal dependencies
  */
 import API from 'googlesitekit-api';
-import { STORE_NAME } from './constants';
-import {
-	ACCOUNT_STATUS_APPROVED,
-	SITE_STATUS_ADDED,
-} from '../util/status';
+import { MODULES_ADSENSE } from './constants';
+import { ACCOUNT_STATUS_APPROVED, SITE_STATUS_ADDED } from '../util/status';
 import {
 	createTestRegistry,
 	subscribeUntil,
-	unsubscribeFromAll,
 } from '../../../../../tests/js/utils';
 import { getItem, setItem } from '../../../googlesitekit/api/cache';
 import { createCacheKey } from '../../../googlesitekit/api';
-import { INVARIANT_INVALID_ACCOUNT_ID, INVARIANT_INVALID_CLIENT_ID } from './settings';
+import {
+	INVARIANT_INVALID_ACCOUNT_ID,
+	INVARIANT_INVALID_CLIENT_ID,
+} from './settings';
 
 describe( 'modules/adsense settings', () => {
 	let registry;
@@ -62,75 +61,105 @@ describe( 'modules/adsense settings', () => {
 		API.setUsingCache( true );
 	} );
 
-	afterEach( () => {
-		unsubscribeFromAll( registry );
-	} );
-
 	describe( 'actions', () => {
 		describe( 'submitChanges', () => {
 			it( 'dispatches saveSettings', async () => {
-				registry.dispatch( STORE_NAME ).setSettings( validSettings );
+				registry
+					.dispatch( MODULES_ADSENSE )
+					.setSettings( validSettings );
 				fetchMock.postOnce(
-					/^\/google-site-kit\/v1\/modules\/adsense\/data\/settings/,
+					new RegExp(
+						'^/google-site-kit/v1/modules/adsense/data/settings'
+					),
 					{ body: validSettings, status: 200 }
 				);
 
-				await registry.dispatch( STORE_NAME ).submitChanges();
+				await registry.dispatch( MODULES_ADSENSE ).submitChanges();
 
 				expect( fetchMock ).toHaveFetchedTimes( 1 );
 				expect( fetchMock ).toHaveFetched(
-					/^\/google-site-kit\/v1\/modules\/adsense\/data\/settings/,
+					new RegExp(
+						'^/google-site-kit/v1/modules/adsense/data/settings'
+					),
 					{
 						body: {
 							data: validSettings,
 						},
 					}
 				);
-				expect( registry.select( STORE_NAME ).haveSettingsChanged() ).toBe( false );
+				expect(
+					registry.select( MODULES_ADSENSE ).haveSettingsChanged()
+				).toBe( false );
 			} );
 
 			it( 'handles an error if set while saving settings', async () => {
-				registry.dispatch( STORE_NAME ).setSettings( validSettings );
+				registry
+					.dispatch( MODULES_ADSENSE )
+					.setSettings( validSettings );
 
 				fetchMock.postOnce(
-					/^\/google-site-kit\/v1\/modules\/adsense\/data\/settings/,
+					new RegExp(
+						'^/google-site-kit/v1/modules/adsense/data/settings'
+					),
 					{ body: wpError, status: 500 }
 				);
-				await registry.dispatch( STORE_NAME ).submitChanges();
+				await registry.dispatch( MODULES_ADSENSE ).submitChanges();
 
-				expect( registry.select( STORE_NAME ).getSettings() ).toEqual( validSettings );
-				expect( registry.select( STORE_NAME ).getErrorForAction( 'submitChanges' ) ).toEqual( wpError );
+				expect(
+					registry.select( MODULES_ADSENSE ).getSettings()
+				).toEqual( validSettings );
+				expect(
+					registry
+						.select( MODULES_ADSENSE )
+						.getErrorForAction( 'submitChanges' )
+				).toEqual( wpError );
 				expect( console ).toHaveErrored();
 			} );
 
 			it( 'invalidates AdSense API cache on success', async () => {
-				registry.dispatch( STORE_NAME ).setSettings( validSettings );
+				registry
+					.dispatch( MODULES_ADSENSE )
+					.setSettings( validSettings );
 
 				fetchMock.postOnce(
-					/^\/google-site-kit\/v1\/modules\/adsense\/data\/settings/,
+					new RegExp(
+						'^/google-site-kit/v1/modules/adsense/data/settings'
+					),
 					{ body: validSettings, status: 200 }
 				);
 
-				const cacheKey = createCacheKey( 'modules', 'adsense', 'arbitrary-datapoint' );
+				const cacheKey = createCacheKey(
+					'modules',
+					'adsense',
+					'arbitrary-datapoint'
+				);
 				expect( await setItem( cacheKey, 'test-value' ) ).toBe( true );
-				expect( ( await getItem( cacheKey ) ).value ).toEqual( 'test-value' );
+				expect( ( await getItem( cacheKey ) ).value ).toEqual(
+					'test-value'
+				);
 
-				await registry.dispatch( STORE_NAME ).submitChanges();
+				await registry.dispatch( MODULES_ADSENSE ).submitChanges();
 
 				expect( ( await getItem( cacheKey ) ).value ).toBeFalsy();
 			} );
 		} );
 
-		describe( 'receiveOriginalAccountStatus', () => {
-			it( 'requires the originalAccountStatus param', () => {
+		describe( 'receiveOriginalUseSnippet', () => {
+			it( 'requires the originalUseSnippet param', () => {
 				expect( () => {
-					registry.dispatch( STORE_NAME ).receiveOriginalAccountStatus();
-				} ).toThrow( 'originalAccountStatus is required.' );
+					registry
+						.dispatch( MODULES_ADSENSE )
+						.receiveOriginalUseSnippet();
+				} ).toThrow( 'originalUseSnippet is required.' );
 			} );
 
-			it( 'receives and sets originalAccountStatus from parameter', () => {
-				registry.dispatch( STORE_NAME ).receiveOriginalAccountStatus( 'something' );
-				expect( registry.select( STORE_NAME ).getOriginalAccountStatus() ).toEqual( 'something' );
+			it( 'receives and sets originalUseSnippet from parameter', () => {
+				registry
+					.dispatch( MODULES_ADSENSE )
+					.receiveOriginalUseSnippet( true );
+				expect(
+					registry.select( MODULES_ADSENSE ).getOriginalUseSnippet()
+				).toBe( true );
 			} );
 		} );
 	} );
@@ -138,100 +167,165 @@ describe( 'modules/adsense settings', () => {
 	describe( 'selectors', () => {
 		describe( 'isDoingSubmitChanges', () => {
 			it( 'sets internal state while submitting changes', () => {
-				expect( registry.select( STORE_NAME ).isDoingSubmitChanges() ).toBe( false );
+				expect(
+					registry.select( MODULES_ADSENSE ).isDoingSubmitChanges()
+				).toBe( false );
 
-				registry.dispatch( STORE_NAME ).submitChanges();
-				expect( registry.select( STORE_NAME ).isDoingSubmitChanges() ).toBe( true );
+				registry.dispatch( MODULES_ADSENSE ).submitChanges();
+				expect(
+					registry.select( MODULES_ADSENSE ).isDoingSubmitChanges()
+				).toBe( true );
 			} );
 
 			it( 'toggles the internal state again once submission is completed', async () => {
-				const submitPromise = registry.dispatch( STORE_NAME ).submitChanges();
-				expect( registry.select( STORE_NAME ).isDoingSubmitChanges() ).toBe( true );
+				const submitPromise = registry
+					.dispatch( MODULES_ADSENSE )
+					.submitChanges();
+				expect(
+					registry.select( MODULES_ADSENSE ).isDoingSubmitChanges()
+				).toBe( true );
 
 				await submitPromise;
 
-				expect( registry.select( STORE_NAME ).isDoingSubmitChanges() ).toBe( false );
+				expect(
+					registry.select( MODULES_ADSENSE ).isDoingSubmitChanges()
+				).toBe( false );
 			} );
 		} );
 
 		describe( 'canSubmitChanges', () => {
 			it( 'requires a valid accountID or empty string', () => {
-				registry.dispatch( STORE_NAME ).setSettings( validSettings );
-				expect( registry.select( STORE_NAME ).canSubmitChanges() ).toBe( true );
+				registry
+					.dispatch( MODULES_ADSENSE )
+					.setSettings( validSettings );
+				expect(
+					registry.select( MODULES_ADSENSE ).canSubmitChanges()
+				).toBe( true );
 
-				registry.dispatch( STORE_NAME ).setAccountID( '0' );
-				expect( () => registry.select( STORE_NAME ).__dangerousCanSubmitChanges() )
-					.toThrow( INVARIANT_INVALID_ACCOUNT_ID );
+				registry.dispatch( MODULES_ADSENSE ).setAccountID( '0' );
+				expect( () =>
+					registry
+						.select( MODULES_ADSENSE )
+						.__dangerousCanSubmitChanges()
+				).toThrow( INVARIANT_INVALID_ACCOUNT_ID );
 
-				registry.dispatch( STORE_NAME ).setAccountID( null );
-				expect( () => registry.select( STORE_NAME ).__dangerousCanSubmitChanges() )
-					.toThrow( INVARIANT_INVALID_ACCOUNT_ID );
+				registry.dispatch( MODULES_ADSENSE ).setAccountID( null );
+				expect( () =>
+					registry
+						.select( MODULES_ADSENSE )
+						.__dangerousCanSubmitChanges()
+				).toThrow( INVARIANT_INVALID_ACCOUNT_ID );
 
 				// An empty string is accepted (for when no account can be determined).
-				registry.dispatch( STORE_NAME ).setAccountID( '' );
-				expect( registry.select( STORE_NAME ).canSubmitChanges() ).toBe( true );
+				registry.dispatch( MODULES_ADSENSE ).setAccountID( '' );
+				expect(
+					registry.select( MODULES_ADSENSE ).canSubmitChanges()
+				).toBe( true );
 			} );
 
 			it( 'requires a valid clientID or empty string', () => {
-				registry.dispatch( STORE_NAME ).setSettings( validSettings );
-				expect( registry.select( STORE_NAME ).canSubmitChanges() ).toBe( true );
+				registry
+					.dispatch( MODULES_ADSENSE )
+					.setSettings( validSettings );
+				expect(
+					registry.select( MODULES_ADSENSE ).canSubmitChanges()
+				).toBe( true );
 
-				registry.dispatch( STORE_NAME ).setClientID( '0' );
-				expect( () => registry.select( STORE_NAME ).__dangerousCanSubmitChanges() )
-					.toThrow( INVARIANT_INVALID_CLIENT_ID );
+				registry.dispatch( MODULES_ADSENSE ).setClientID( '0' );
+				expect( () =>
+					registry
+						.select( MODULES_ADSENSE )
+						.__dangerousCanSubmitChanges()
+				).toThrow( INVARIANT_INVALID_CLIENT_ID );
 
-				registry.dispatch( STORE_NAME ).setClientID( null );
-				expect( () => registry.select( STORE_NAME ).__dangerousCanSubmitChanges() )
-					.toThrow( INVARIANT_INVALID_CLIENT_ID );
+				registry.dispatch( MODULES_ADSENSE ).setClientID( null );
+				expect( () =>
+					registry
+						.select( MODULES_ADSENSE )
+						.__dangerousCanSubmitChanges()
+				).toThrow( INVARIANT_INVALID_CLIENT_ID );
 
 				// An empty string is accepted (for when no client can be determined).
-				registry.dispatch( STORE_NAME ).setClientID( '' );
-				expect( registry.select( STORE_NAME ).canSubmitChanges() ).toBe( true );
+				registry.dispatch( MODULES_ADSENSE ).setClientID( '' );
+				expect(
+					registry.select( MODULES_ADSENSE ).canSubmitChanges()
+				).toBe( true );
 			} );
 		} );
 
-		describe( 'getOriginalAccountStatus', () => {
+		describe( 'getOriginalUseSnippet', () => {
 			it( 'uses a resolver to make a network request via getSettings', async () => {
-				const response = { accountStatus: 'some-status' };
+				const response = { useSnippet: false };
 				fetchMock.getOnce(
-					/^\/google-site-kit\/v1\/modules\/adsense\/data\/settings/,
+					new RegExp(
+						'^/google-site-kit/v1/modules/adsense/data/settings'
+					),
 					{ body: response, status: 200 }
 				);
 
-				const initialOriginalAccountStatus = registry.select( STORE_NAME ).getOriginalAccountStatus();
+				const initialOriginalUseSnippet = registry
+					.select( MODULES_ADSENSE )
+					.getOriginalUseSnippet();
 				// Settings will be their initial value while being fetched.
-				expect( initialOriginalAccountStatus ).toEqual( undefined );
+				expect( initialOriginalUseSnippet ).toBeUndefined();
 
-				await subscribeUntil( registry, () => registry.select( STORE_NAME ).hasFinishedResolution( 'getOriginalAccountStatus' ) && registry.select( STORE_NAME ).hasFinishedResolution( 'getSettings' ) );
+				await subscribeUntil(
+					registry,
+					() =>
+						registry
+							.select( MODULES_ADSENSE )
+							.hasFinishedResolution( 'getOriginalUseSnippet' ) &&
+						registry
+							.select( MODULES_ADSENSE )
+							.hasFinishedResolution( 'getSettings' )
+				);
 
-				const originalAccountStatus = registry.select( STORE_NAME ).getOriginalAccountStatus();
+				const originalUseSnippet = registry
+					.select( MODULES_ADSENSE )
+					.getOriginalUseSnippet();
 
 				expect( fetchMock ).toHaveFetchedTimes( 1 );
-				expect( originalAccountStatus ).toEqual( response.accountStatus );
+				expect( originalUseSnippet ).toBe( response.useSnippet );
 			} );
 
-			it( 'does not make a network request if original account status is already set', async () => {
-				const value = 'a-status';
-				registry.dispatch( STORE_NAME ).receiveOriginalAccountStatus( value );
+			it( 'does not make a network request if original useSnippet is already set', async () => {
+				const value = true;
+				registry
+					.dispatch( MODULES_ADSENSE )
+					.receiveOriginalUseSnippet( value );
 
-				expect( registry.select( STORE_NAME ).getOriginalAccountStatus() ).toEqual( value );
+				expect(
+					registry.select( MODULES_ADSENSE ).getOriginalUseSnippet()
+				).toBe( value );
 
-				await subscribeUntil( registry, () => registry.select( STORE_NAME ).hasFinishedResolution( 'getOriginalAccountStatus' ) );
+				await subscribeUntil( registry, () =>
+					registry
+						.select( MODULES_ADSENSE )
+						.hasFinishedResolution( 'getOriginalUseSnippet' )
+				);
 
 				expect( fetchMock ).not.toHaveFetched();
 			} );
 
-			it( 'does not override original account status when receiving settings again', async () => {
+			it( 'does not override original useSnippet when receiving settings again', () => {
 				// Set original value.
-				const value = 'a-status';
-				registry.dispatch( STORE_NAME ).receiveOriginalAccountStatus( value );
+				const value = true;
+				registry
+					.dispatch( MODULES_ADSENSE )
+					.receiveOriginalUseSnippet( value );
 
-				expect( registry.select( STORE_NAME ).getOriginalAccountStatus() ).toEqual( value );
+				expect(
+					registry.select( MODULES_ADSENSE ).getOriginalUseSnippet()
+				).toBe( value );
 
 				// Despite receiving settings, the value should not be updated
 				// as it was already set.
-				registry.dispatch( STORE_NAME ).receiveGetSettings( { accountStatus: 'another-status' } );
-				expect( registry.select( STORE_NAME ).getOriginalAccountStatus() ).toEqual( value );
+				registry
+					.dispatch( MODULES_ADSENSE )
+					.receiveGetSettings( { useSnippet: false } );
+				expect(
+					registry.select( MODULES_ADSENSE ).getOriginalUseSnippet()
+				).toBe( value );
 			} );
 		} );
 	} );

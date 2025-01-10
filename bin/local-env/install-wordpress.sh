@@ -4,8 +4,6 @@
 set -e
 
 # Common variables.
-WP_DEBUG=${WP_DEBUG-false}
-SCRIPT_DEBUG=${SCRIPT_DEBUG-true}
 WP_VERSION=${WP_VERSION-"latest"}
 
 # Include useful functions
@@ -89,6 +87,12 @@ if [ "$WP_VERSION" == "latest" ]; then
 	wp core update-db --quiet
 fi
 
+if [ -n "$CA_CERT_REFRESH" ]; then
+  status_message "Updating WordPress certificate bundle..."
+  container curl --remote-name --show-error --silent https://raw.githubusercontent.com/WordPress/wordpress-develop/refs/heads/trunk/src/wp-includes/certificates/ca-bundle.crt
+  container mv ca-bundle.crt wp-includes/certificates/ca-bundle.crt
+fi
+
 # Switch to `twentytwenty` theme for consistent results (particularly for AMP compatibility).
 # For older versions of WP, download and install it if it isn't present.
 # If `twentytwenty` is already the active theme, the script will continue
@@ -119,6 +123,10 @@ else
 	wp plugin update amp --minor --quiet
 fi
 
+# Install the WP Consent API plugin
+status_message "Installing the WP Consent API plugin..."
+wp plugin install wp-consent-api --force --quiet
+
 # Install a placeholder favicon to avoid 404 errors.
 status_message "Installing a placeholder favicon..."
 container touch /var/www/html/favicon.ico
@@ -134,19 +142,3 @@ wp google-site-kit reset
 status_message "Setting permalink structure..."
 wp rewrite structure '%postname%' --hard --quiet
 
-# Configure site constants.
-status_message "Configuring site constants..."
-WP_DEBUG_CURRENT=$(wp config get --type=constant --format=json WP_DEBUG | tr -d '\r')
-
-if [ "$WP_DEBUG" != $WP_DEBUG_CURRENT ]; then
-	wp config set WP_DEBUG $WP_DEBUG --raw --type=constant --quiet
-	WP_DEBUG_RESULT=$(wp config get --type=constant --format=json WP_DEBUG | tr -d '\r')
-	status_message "WP_DEBUG: $WP_DEBUG_RESULT..."
-fi
-
-SCRIPT_DEBUG_CURRENT=$(wp config get --type=constant --format=json SCRIPT_DEBUG | tr -d '\r')
-if [ "$SCRIPT_DEBUG" != $SCRIPT_DEBUG_CURRENT ]; then
-	wp config set SCRIPT_DEBUG $SCRIPT_DEBUG --raw --type=constant --quiet
-	SCRIPT_DEBUG_RESULT=$(wp config get --type=constant --format=json SCRIPT_DEBUG | tr -d '\r')
-	status_message "SCRIPT_DEBUG: $SCRIPT_DEBUG_RESULT..."
-fi

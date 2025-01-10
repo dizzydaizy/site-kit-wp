@@ -24,18 +24,17 @@ import PropTypes from 'prop-types';
 /**
  * WordPress dependencies
  */
-import { __, sprintf } from '@wordpress/i18n';
 import { useCallback } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
-import Button from '../../components/Button';
-import IconSurveyUnhappy from '../../../svg/survey-unhappy.svg';
-import IconSurveyDissatisfied from '../../../svg/survey-dissatisfied.svg';
-import IconSurveyNeutral from '../../../svg/survey-neutral.svg';
-import IconSurveySatisfied from '../../../svg/survey-satisfied.svg';
-import IconSurveyDelighted from '../../../svg/survey-delighted.svg';
+import { Button } from 'googlesitekit-components';
+import IconSurveyUnhappy from '../../../svg/icons/survey-unhappy.svg';
+import IconSurveyDissatisfied from '../../../svg/icons/survey-dissatisfied.svg';
+import IconSurveyNeutral from '../../../svg/icons/survey-neutral.svg';
+import IconSurveySatisfied from '../../../svg/icons/survey-satisfied.svg';
+import IconSurveyDelighted from '../../../svg/icons/survey-delighted.svg';
 
 const ordinalIconMap = {
 	1: IconSurveyUnhappy,
@@ -45,7 +44,7 @@ const ordinalIconMap = {
 	5: IconSurveyDelighted,
 };
 
-const SurveyQuestionRatingChoice = ( { choice, answerQuestion } ) => {
+function SurveyQuestionRatingChoice( { choice, answerQuestion } ) {
 	const handleButtonClick = useCallback( () => {
 		if ( typeof answerQuestion === 'function' ) {
 			answerQuestion( {
@@ -64,22 +63,14 @@ const SurveyQuestionRatingChoice = ( { choice, answerQuestion } ) => {
 		<div className="googlesitekit-survey__choice">
 			<Button
 				icon={ <Icon width={ 30 } height={ 30 } /> }
-				aria-label={
-					sprintf(
-						/* translators: %s: Icon Expression */
-						__( '%s icon', 'google-site-kit' ),
-						choice.text,
-					)
-				}
+				aria-label={ choice.text }
 				onClick={ handleButtonClick }
 			/>
 
-			<p>
-				{ choice.text }
-			</p>
+			<p>{ choice.text }</p>
 		</div>
 	);
-};
+}
 
 SurveyQuestionRatingChoice.propTypes = {
 	choice: PropTypes.shape( {

@@ -20,22 +20,27 @@
  * External dependencies
  */
 import invariant from 'invariant';
-import isPlainObject from 'lodash/isPlainObject';
+import { isPlainObject } from 'lodash';
 
 /**
  * Internal dependencies
  */
 import API from 'googlesitekit-api';
-import Data from 'googlesitekit-data';
-import { STORE_NAME } from './constants';
+import { commonActions, combineStores } from 'googlesitekit-data';
+import { MODULES_ADSENSE } from './constants';
 import { stringifyObject } from '../../../util';
 import { createFetchStore } from '../../../googlesitekit/data/create-fetch-store';
-import { isValidDateRange, isValidOrders, isValidStringularItems } from '../../../util/report-validation';
+import {
+	isValidDateRange,
+	isValidOrders,
+	isValidStringularItems,
+} from '../../../util/report-validation';
+import { validateDimensions, validateMetrics } from '../util/report-validation';
 
 const fetchGetReportStore = createFetchStore( {
 	baseName: 'getReport',
 	controlCallback: ( { options } ) => {
-		return API.get( 'modules', 'adsense', 'earnings', options );
+		return API.get( 'modules', 'adsense', 'report', options );
 	},
 	reducerCallback: ( state, report, { options } ) => {
 		return {
@@ -53,26 +58,31 @@ const fetchGetReportStore = createFetchStore( {
 		invariant( isPlainObject( options ), 'options must be an object.' );
 
 		// Account for additional date ranges supported by AdSense module in PHP.
-		invariant( 'today' === options.dateRange || isValidDateRange( options ), 'Either date range or start/end dates must be provided for AdSense report.' );
+		invariant(
+			isValidDateRange( options ),
+			'Either date range or start/end dates must be provided for AdSense report.'
+		);
 
 		const { orderby, metrics, dimensions } = options;
 
 		invariant(
 			isValidStringularItems( metrics ),
-			'Metrics for an AdSense report must be either a string or an array of strings.',
+			'Metrics for an AdSense report must be either a string or an array of strings.'
 		);
+		validateMetrics( metrics );
 
 		if ( dimensions ) {
 			invariant(
 				isValidStringularItems( dimensions ),
-				'Dimensions for an AdSense report must be either a string or an array of strings.',
+				'Dimensions for an AdSense report must be either a string or an array of strings.'
 			);
+			validateDimensions( dimensions );
 		}
 
 		if ( orderby ) {
 			invariant(
 				isValidOrders( orderby ),
-				'Orders for an AdSense report must be either an object or an array of objects where each object should have "fieldName" and "sortOrder" properties.',
+				'Orders for an AdSense report must be either an object or an array of objects where each object should have "fieldName" and "sortOrder" properties.'
 			);
 		}
 	},
@@ -84,8 +94,10 @@ const baseInitialState = {
 
 const baseResolvers = {
 	*getReport( options = {} ) {
-		const registry = yield Data.commonActions.getRegistry();
-		const existingReport = registry.select( STORE_NAME ).getReport( options );
+		const registry = yield commonActions.getRegistry();
+		const existingReport = registry
+			.select( MODULES_ADSENSE )
+			.getReport( options );
 
 		// If there are already alerts loaded in state, consider it fulfilled
 		// and don't make an API request.
@@ -103,7 +115,7 @@ const baseSelectors = {
 	 *
 	 * The report generated will include the following metrics:
 	 *
-	 * * 'EARNINGS'
+	 * * 'ESTIMATED_EARNINGS'
 	 * * 'PAGE_VIEWS_RPM'
 	 * * 'IMPRESSIONS'
 	 *
@@ -113,9 +125,8 @@ const baseSelectors = {
 	 *
 	 * @param {Object}         state                Data store's state.
 	 * @param {Object}         options              Options for generating the report.
-	 * @param {string}         options.startDate    Required, unless dateRange is provided. Start date to query report data for as YYYY-mm-dd.
-	 * @param {string}         options.endDate      Required, unless dateRange is provided. Start date to query report data for as YYYY-mm-dd.
-	 * @param {string}         options.dateRange    Required, alternatively to startDate and endDate. A date range string. Default 'last-28-days'.
+	 * @param {string}         options.startDate    Required. Start date to query report data for as YYYY-mm-dd.
+	 * @param {string}         options.endDate      Required. Start date to query report data for as YYYY-mm-dd.
 	 * @param {Array.<string>} options.metrics      Required. List of {@link https://developers.google.com/adsense/management/metrics-dimensions#metrics|metrics} to query.
 	 * @param {Array.<string>} [options.dimensions] Optional. List of {@link https://developers.google.com/adsense/management/metrics-dimensions#dimensions|dimensions} to group results by.
 	 * @param {Array.<Object>} [options.orderby]    Optional. Order definition objects containing 'fieldName' and 'sortOrder'. 'sortOrder' must be either 'ASCENDING' or 'DESCENDING'. Default null.
@@ -129,14 +140,11 @@ const baseSelectors = {
 	},
 };
 
-const store = Data.combineStores(
-	fetchGetReportStore,
-	{
-		initialState: baseInitialState,
-		resolvers: baseResolvers,
-		selectors: baseSelectors,
-	}
-);
+const store = combineStores( fetchGetReportStore, {
+	initialState: baseInitialState,
+	resolvers: baseResolvers,
+	selectors: baseSelectors,
+} );
 
 export const initialState = store.initialState;
 export const actions = store.actions;

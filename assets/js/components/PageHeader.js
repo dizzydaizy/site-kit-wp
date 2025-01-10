@@ -21,61 +21,84 @@
 import classnames from 'classnames';
 import PropTypes from 'prop-types';
 
-export default function PageHeader( props ) {
-	const { title, icon, className, status, statusText, fullWidth, children } = props;
+/**
+ * Internal dependencies
+ */
+import { Cell, Row } from '../material-components';
+import ConnectedIcon from '../../svg/icons/connected.svg';
+import ExclamationIcon from '../../svg/icons/exclamation.svg';
+import IconWrapper from './IconWrapper';
 
-	const widthClasses = fullWidth
-		? `
-		mdc-layout-grid__cell
-		mdc-layout-grid__cell--span-12
-		`
-		: `
-		mdc-layout-grid__cell
-		mdc-layout-grid__cell--span-4-phone
-		mdc-layout-grid__cell--span-4-tablet
-		mdc-layout-grid__cell--span-6-desktop
-		`;
+export default function PageHeader( props ) {
+	const { title, icon, className, status, statusText, fullWidth, children } =
+		props;
+
+	const titleCellProps = fullWidth
+		? {
+				size: 12,
+		  }
+		: {
+				smSize: 4,
+				mdSize: 4,
+				lgSize: 6,
+		  };
 
 	// Determine whether the details cell should display.
 	const hasDetails = '' !== status || Boolean( children );
 
 	return (
 		<header className="googlesitekit-page-header">
-			<div className="mdc-layout-grid__inner">
-				{ title &&
-					<div className={ widthClasses }>
+			<Row>
+				{ title && (
+					<Cell { ...titleCellProps }>
 						{ icon }
-						<h1 className={ classnames(
-							'googlesitekit-page-header__title',
-							className
-						) }>
+						<h1
+							className={ classnames(
+								'googlesitekit-page-header__title',
+								className
+							) }
+						>
 							{ title }
 						</h1>
-					</div>
-				}
-				{ hasDetails &&
-					<div className="
-						mdc-layout-grid__cell
-						mdc-layout-grid__cell--align-bottom
-						mdc-layout-grid__cell--align-right-tablet
-						mdc-layout-grid__cell--span-4-phone
-						mdc-layout-grid__cell--span-4-tablet
-						mdc-layout-grid__cell--span-6-desktop
-					">
+					</Cell>
+				) }
+				{ hasDetails && (
+					<Cell
+						alignBottom
+						mdAlignRight
+						smSize={ 4 }
+						mdSize={ 4 }
+						lgSize={ 6 }
+					>
 						<div className="googlesitekit-page-header__details">
-							{ status &&
-								<span className={ classnames(
-									'googlesitekit-page-header__status',
-									`googlesitekit-page-header__status--${ status }`
-								) }>
+							{ status && (
+								<span
+									className={ classnames(
+										'googlesitekit-page-header__status',
+										`googlesitekit-page-header__status--${ status }`
+									) }
+								>
 									{ statusText }
+									<IconWrapper>
+										{ 'connected' === status ? (
+											<ConnectedIcon
+												width={ 10 }
+												height={ 8 }
+											/>
+										) : (
+											<ExclamationIcon
+												width={ 2 }
+												height={ 12 }
+											/>
+										) }
+									</IconWrapper>
 								</span>
-							}
+							) }
 							{ children }
 						</div>
-					</div>
-				}
-			</div>
+					</Cell>
+				) }
+			</Row>
 		</header>
 	);
 }

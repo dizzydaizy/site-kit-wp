@@ -78,19 +78,19 @@ export const HTML = () => {};
 			`,
 		},
 		{
-			code: `const AMP_PROJECT_TEST_URL = 'foo';`,
+			code: "const AMP_PROJECT_TEST_URL = 'foo';",
 		},
 		{
-			code: `const amp = '';`,
+			code: "const amp = '';",
 		},
 		{
-			code: `const json = false;`,
+			code: 'const json = false;',
 		},
 		{
-			code: `const html = () => {};`,
+			code: 'const html = () => {};',
 		},
 		{
-			code: `const HTML = () => {};`,
+			code: 'const HTML = () => {};',
 		},
 	],
 	invalid: [
@@ -108,12 +108,7 @@ export const HTML = () => {};
 		      `,
 			errors: [
 				{
-					message:
-								'`useInstanceId` violates naming rules.',
-				},
-				{
-					message:
-								'`useInstanceId` violates naming rules.',
+					message: '`useInstanceId` violates naming rules.',
 				},
 			],
 		},
@@ -129,12 +124,7 @@ export function FancyComponent() {
 `,
 			errors: [
 				{
-					message:
-								'`useInstanceId` violates naming rules.',
-				},
-				{
-					message:
-								'`useInstanceId` violates naming rules.',
+					message: '`useInstanceId` violates naming rules.',
 				},
 			],
 		},
@@ -151,7 +141,7 @@ const HTMLNode = '<div></div>';
 			],
 		},
 		{
-			code: `const Amp = '';`,
+			code: "const Amp = '';",
 			errors: [
 				{
 					message: '`Amp` violates naming rules.',
@@ -159,7 +149,7 @@ const HTMLNode = '<div></div>';
 			],
 		},
 		{
-			code: `const Json = false;`,
+			code: 'const Json = false;',
 			errors: [
 				{
 					message: '`Json` violates naming rules.',
@@ -167,7 +157,7 @@ const HTMLNode = '<div></div>';
 			],
 		},
 		{
-			code: `const Html = () => {};`,
+			code: 'const Html = () => {};',
 			errors: [
 				{
 					message: '`Html` violates naming rules.',

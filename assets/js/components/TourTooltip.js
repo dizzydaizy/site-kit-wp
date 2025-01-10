@@ -26,9 +26,9 @@ import PropTypes from 'prop-types';
 /**
  * Internal dependencies
  */
+import { Button } from 'googlesitekit-components';
 import { createIncrementalArrayBySize } from '../util/create-incremental-array-by-size';
-import CloseIcon from '../../svg/close.svg';
-import Button from './Button';
+import CloseIcon from '../../svg/icons/close.svg';
 
 export default function TourTooltip( {
 	backProps,
@@ -40,12 +40,19 @@ export default function TourTooltip( {
 	tooltipProps,
 } ) {
 	const indicatorArray = size > 1 ? createIncrementalArrayBySize( size ) : [];
-	const getIndicatorClassName = ( indicatorIndex ) => classnames( 'googlesitekit-tooltip-indicator', {
-		active: indicatorIndex === index,
-	} );
+	const getIndicatorClassName = ( indicatorIndex ) =>
+		classnames( 'googlesitekit-tooltip-indicator', {
+			active: indicatorIndex === index,
+		} );
 
 	return (
-		<div className="googlesitekit-tour-tooltip" { ...tooltipProps }>
+		<div
+			className={ classnames(
+				'googlesitekit-tour-tooltip',
+				step.className
+			) }
+			{ ...tooltipProps }
+		>
 			<Card className="googlesitekit-tooltip-card">
 				<div className="googlesitekit-tooltip-body">
 					<h2 className="googlesitekit-tooltip-title">
@@ -60,7 +67,9 @@ export default function TourTooltip( {
 						{ indicatorArray.map( ( indicatorIndex ) => (
 							<li
 								key={ `indicator-${ indicatorIndex }` }
-								className={ getIndicatorClassName( indicatorIndex ) }
+								className={ getIndicatorClassName(
+									indicatorIndex
+								) }
 							/>
 						) ) }
 					</ul>
@@ -74,18 +83,22 @@ export default function TourTooltip( {
 								{ backProps.title }
 							</Button>
 						) }
-						<Button
-							className="googlesitekit-tooltip-button"
-							text
-							{ ...primaryProps }
-						>
-							{ primaryProps.title }
-						</Button>
+						{ step.cta }
+						{ primaryProps.title && (
+							<Button
+								className="googlesitekit-tooltip-button"
+								text
+								{ ...primaryProps }
+							>
+								{ primaryProps.title }
+							</Button>
+						) }
 					</div>
 				</CardActions>
 				<Button
 					className="googlesitekit-tooltip-close"
 					text
+					hideTooltipTitle
 					icon={ <CloseIcon width="14" height="14" /> }
 					{ ...closeProps }
 				/>
@@ -108,8 +121,10 @@ TourTooltip.propTypes = {
 	primaryProps: PropTypes.object.isRequired,
 	size: PropTypes.number.isRequired,
 	step: PropTypes.shape( {
-		content: PropTypes.node.isRequired,
+		content: PropTypes.node,
 		title: PropTypes.node.isRequired,
+		cta: PropTypes.oneOfType( [ PropTypes.element, PropTypes.bool ] ),
+		className: PropTypes.string,
 	} ).isRequired,
 	tooltipProps: PropTypes.object.isRequired,
 };

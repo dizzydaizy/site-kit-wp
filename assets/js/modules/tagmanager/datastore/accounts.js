@@ -25,22 +25,28 @@ import invariant from 'invariant';
  * Internal dependencies
  */
 import API from 'googlesitekit-api';
-import Data from 'googlesitekit-data';
+import {
+	createRegistrySelector,
+	commonActions,
+	combineStores,
+} from 'googlesitekit-data';
 import { createValidatedAction } from '../../../googlesitekit/data/utils';
 import { CORE_SITE } from '../../../googlesitekit/datastore/site/constants';
-import { STORE_NAME, CONTAINER_CREATE } from './constants';
+import { MODULES_TAGMANAGER, CONTAINER_CREATE } from './constants';
 import { actions as containerActions } from './containers';
 import { isValidAccountSelection } from '../util/validation';
 import { createFetchStore } from '../../../googlesitekit/data/create-fetch-store';
-import { ACCOUNT_CREATE } from '../../analytics/datastore/constants';
-const { createRegistrySelector } = Data;
+import { ACCOUNT_CREATE } from '../../analytics-4/datastore/constants';
 
 // Actions
 const RESET_ACCOUNTS = 'RESET_ACCOUNTS';
 
 const fetchGetAccountsStore = createFetchStore( {
 	baseName: 'getAccounts',
-	controlCallback: () => API.get( 'modules', 'tagmanager', 'accounts', null, { useCache: false } ),
+	controlCallback: () =>
+		API.get( 'modules', 'tagmanager', 'accounts', null, {
+			useCache: false,
+		} ),
 	reducerCallback: ( state, accounts ) => {
 		return {
 			...state,
@@ -63,14 +69,16 @@ export const baseActions = {
 	 * @private
 	 */
 	*resetAccounts() {
-		const { dispatch } = yield Data.commonActions.getRegistry();
+		const { dispatch } = yield commonActions.getRegistry();
 
 		yield {
 			payload: {},
 			type: RESET_ACCOUNTS,
 		};
 
-		dispatch( STORE_NAME ).invalidateResolutionForStoreSelector( 'getAccounts' );
+		dispatch( MODULES_TAGMANAGER ).invalidateResolutionForStoreSelector(
+			'getAccounts'
+		);
 	},
 
 	/**
@@ -83,23 +91,31 @@ export const baseActions = {
 	 */
 	selectAccount: createValidatedAction(
 		( accountID ) => {
-			invariant( isValidAccountSelection( accountID ), 'A valid accountID selection is required to select.' );
+			invariant(
+				isValidAccountSelection( accountID ),
+				'A valid accountID selection is required to select.'
+			);
 		},
 		function* ( accountID ) {
-			const { select, dispatch } = yield Data.commonActions.getRegistry();
+			const { select, dispatch } = yield commonActions.getRegistry();
 
 			// Do nothing if the accountID to select is the same as the current.
-			if ( accountID === select( STORE_NAME ).getAccountID() ) {
+			if ( accountID === select( MODULES_TAGMANAGER ).getAccountID() ) {
 				return;
 			}
 
-			dispatch( STORE_NAME ).setAccountID( accountID );
-			dispatch( STORE_NAME ).setContainerID( '' );
-			dispatch( STORE_NAME ).setInternalContainerID( '' );
-			dispatch( STORE_NAME ).setAMPContainerID( '' );
-			dispatch( STORE_NAME ).setInternalAMPContainerID( '' );
+			dispatch( MODULES_TAGMANAGER ).setSettings( {
+				accountID,
+				containerID: '',
+				internalContainerID: '',
+				ampContainerID: '',
+				internalAMPContainerID: '',
+			} );
 
-			if ( ACCOUNT_CREATE === accountID || select( STORE_NAME ).hasExistingTag() ) {
+			if (
+				ACCOUNT_CREATE === accountID ||
+				select( MODULES_TAGMANAGER ).hasExistingTag()
+			) {
 				return;
 			}
 
@@ -111,23 +127,47 @@ export const baseActions = {
 			// Trigger cascading selections.
 			const { isAMP, isSecondaryAMP } = select( CORE_SITE );
 			if ( ! isAMP() || isSecondaryAMP() ) {
-				const webContainers = select( STORE_NAME ).getWebContainers( accountID );
-				// eslint-disable-next-line sitekit/acronym-case
-				const webContainer = webContainers[ 0 ] || { publicId: CONTAINER_CREATE, containerId: '' };
-				// eslint-disable-next-line sitekit/acronym-case
-				dispatch( STORE_NAME ).setContainerID( webContainer.publicId );
-				// eslint-disable-next-line sitekit/acronym-case
-				dispatch( STORE_NAME ).setInternalContainerID( webContainer.containerId );
+				const webContainers =
+					select( MODULES_TAGMANAGER ).getWebContainers( accountID );
+
+				if ( ! webContainers.length ) {
+					dispatch( MODULES_TAGMANAGER ).setContainerID(
+						CONTAINER_CREATE
+					);
+					dispatch( MODULES_TAGMANAGER ).setInternalContainerID( '' );
+				} else if ( webContainers.length === 1 ) {
+					dispatch( MODULES_TAGMANAGER ).setContainerID(
+						// eslint-disable-next-line sitekit/acronym-case
+						webContainers[ 0 ].publicId
+					);
+					dispatch( MODULES_TAGMANAGER ).setInternalContainerID(
+						// eslint-disable-next-line sitekit/acronym-case
+						webContainers[ 0 ].containerId
+					);
+				}
 			}
 
 			if ( isAMP() ) {
-				const ampContainers = select( STORE_NAME ).getAMPContainers( accountID );
-				// eslint-disable-next-line sitekit/acronym-case
-				const ampContainer = ampContainers[ 0 ] || { publicId: CONTAINER_CREATE, containerId: '' };
-				// eslint-disable-next-line sitekit/acronym-case
-				dispatch( STORE_NAME ).setAMPContainerID( ampContainer.publicId );
-				// eslint-disable-next-line sitekit/acronym-case
-				dispatch( STORE_NAME ).setInternalAMPContainerID( ampContainer.containerId );
+				const ampContainers =
+					select( MODULES_TAGMANAGER ).getAMPContainers( accountID );
+
+				if ( ! ampContainers.length ) {
+					dispatch( MODULES_TAGMANAGER ).setAMPContainerID(
+						CONTAINER_CREATE
+					);
+					dispatch( MODULES_TAGMANAGER ).setInternalAMPContainerID(
+						''
+					);
+				} else if ( ampContainers.length === 1 ) {
+					dispatch( MODULES_TAGMANAGER ).setAMPContainerID(
+						// eslint-disable-next-line sitekit/acronym-case
+						ampContainers[ 0 ].publicId
+					);
+					dispatch( MODULES_TAGMANAGER ).setInternalAMPContainerID(
+						// eslint-disable-next-line sitekit/acronym-case
+						ampContainers[ 0 ].containerId
+					);
+				}
 			}
 		}
 	),
@@ -158,17 +198,23 @@ export const baseReducer = ( state, { type } ) => {
 
 export const baseResolvers = {
 	*getAccounts() {
-		const { select, dispatch } = yield Data.commonActions.getRegistry();
-		let accounts = select( STORE_NAME ).getAccounts();
+		const { select, dispatch } = yield commonActions.getRegistry();
+		let accounts = select( MODULES_TAGMANAGER ).getAccounts();
 
 		// Only fetch accounts if they have not been received yet.
 		if ( ! accounts ) {
-			( { response: accounts } = yield fetchGetAccountsStore.actions.fetchGetAccounts() );
+			( { response: accounts } =
+				yield fetchGetAccountsStore.actions.fetchGetAccounts() );
 		}
 
-		if ( accounts?.length && ! select( STORE_NAME ).getAccountID() ) {
-			// eslint-disable-next-line sitekit/acronym-case
-			dispatch( STORE_NAME ).selectAccount( accounts[ 0 ].accountId );
+		if (
+			accounts?.length === 1 &&
+			! select( MODULES_TAGMANAGER ).getAccountID()
+		) {
+			dispatch( MODULES_TAGMANAGER ).selectAccount(
+				// eslint-disable-next-line sitekit/acronym-case
+				accounts[ 0 ].accountId
+			);
 		}
 	},
 };
@@ -197,20 +243,17 @@ export const baseSelectors = {
 	 * @return {boolean} Whether accounts are currently being fetched or not.
 	 */
 	isDoingGetAccounts: createRegistrySelector( ( select ) => () => {
-		return select( STORE_NAME ).isFetchingGetAccounts();
+		return select( MODULES_TAGMANAGER ).isFetchingGetAccounts();
 	} ),
 };
 
-const store = Data.combineStores(
-	fetchGetAccountsStore,
-	{
-		initialState: baseInitialState,
-		actions: baseActions,
-		reducer: baseReducer,
-		resolvers: baseResolvers,
-		selectors: baseSelectors,
-	}
-);
+const store = combineStores( fetchGetAccountsStore, {
+	initialState: baseInitialState,
+	actions: baseActions,
+	reducer: baseReducer,
+	resolvers: baseResolvers,
+	selectors: baseSelectors,
+} );
 
 export const {
 	initialState,

@@ -20,26 +20,41 @@
  * WordPress dependencies
  */
 import { __ } from '@wordpress/i18n';
-import { Fragment, useState, useEffect, useCallback, createInterpolateElement } from '@wordpress/element';
+import {
+	Fragment,
+	createInterpolateElement,
+	useCallback,
+	useEffect,
+	useState,
+} from '@wordpress/element';
 import { ESCAPE } from '@wordpress/keycodes';
 import { useDebounce } from '../hooks/useDebounce';
 
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import { clearWebStorage } from '../util';
-import Dialog from './Dialog';
+import { useSelect, useDispatch } from 'googlesitekit-data';
+import ModalDialog from './ModalDialog';
+import { clearCache } from '../googlesitekit/api/cache';
 import Portal from './Portal';
 import Link from './Link';
 import { CORE_SITE } from '../googlesitekit/datastore/site/constants';
 import { CORE_LOCATION } from '../googlesitekit/datastore/location/constants';
-const { useSelect, useDispatch } = Data;
+import { trackEvent } from '../util/tracking';
+import useViewContext from '../hooks/useViewContext';
 
 function ResetButton( { children } ) {
-	const postResetURL = useSelect( ( select ) => select( CORE_SITE ).getAdminURL( 'googlesitekit-splash', { notification: 'reset_success' } ) );
-	const isDoingReset = useSelect( ( select ) => select( CORE_SITE ).isDoingReset() );
-	const isNavigatingToPostResetURL = useSelect( ( select ) => select( CORE_LOCATION ).isNavigatingTo( postResetURL || '' ) );
+	const postResetURL = useSelect( ( select ) =>
+		select( CORE_SITE ).getAdminURL( 'googlesitekit-splash', {
+			notification: 'reset_success',
+		} )
+	);
+	const isDoingReset = useSelect( ( select ) =>
+		select( CORE_SITE ).isDoingReset()
+	);
+	const isNavigatingToPostResetURL = useSelect( ( select ) =>
+		select( CORE_LOCATION ).isNavigatingTo( postResetURL || '' )
+	);
 	const [ inProgress, setInProgress ] = useState( false );
 	const [ dialogActive, setDialogActive ] = useState( false );
 
@@ -83,11 +98,14 @@ function ResetButton( { children } ) {
 	const { reset } = useDispatch( CORE_SITE );
 	const { navigateTo } = useDispatch( CORE_LOCATION );
 
+	const viewContext = useViewContext();
+
 	const handleUnlinkConfirm = useCallback( async () => {
 		await reset();
-		clearWebStorage();
+		await clearCache();
+		await trackEvent( viewContext, 'reset_plugin' );
 		navigateTo( postResetURL );
-	}, [ reset, postResetURL, navigateTo ] );
+	}, [ navigateTo, postResetURL, reset, viewContext ] );
 
 	const toggleDialogActive = useCallback( () => {
 		setDialogActive( ! dialogActive );
@@ -99,26 +117,27 @@ function ResetButton( { children } ) {
 
 	return (
 		<Fragment>
-			<Link
-				className="googlesitekit-reset-button"
-				onClick={ openDialog }
-				inherit
-			>
+			<Link className="googlesitekit-reset-button" onClick={ openDialog }>
 				{ children || __( 'Reset Site Kit', 'google-site-kit' ) }
 			</Link>
 			<Portal>
-				<Dialog
+				<ModalDialog
 					dialogActive={ dialogActive }
 					handleConfirm={ handleUnlinkConfirm }
 					handleDialog={ toggleDialogActive }
 					title={ __( 'Reset Site Kit', 'google-site-kit' ) }
 					subtitle={ createInterpolateElement(
-						__( `Resetting will disconnect all users and remove all Site Kit settings and data within WordPress. <br />You and any other users who wish to use Site Kit will need to reconnect to restore access.`, 'google-site-kit' ),
+						__(
+							'Resetting will disconnect all users and remove all Site Kit settings and data within WordPress. <br />You and any other users who wish to use Site Kit will need to reconnect to restore access.',
+							'google-site-kit'
+						),
 						{
 							br: <br />,
-						} ) }
+						}
+					) }
 					confirmButton={ __( 'Reset', 'google-site-kit' ) }
 					danger
+					small
 					inProgress={ inProgress }
 				/>
 			</Portal>

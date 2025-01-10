@@ -30,19 +30,32 @@ import { isURL } from '@wordpress/url';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import { STORE_NAME, FORM_SETUP, CONTAINER_CREATE } from '../../datastore/constants';
+import { useSelect, useDispatch } from 'googlesitekit-data';
+import {
+	MODULES_TAGMANAGER,
+	FORM_SETUP,
+	CONTAINER_CREATE,
+} from '../../datastore/constants';
 import { CORE_SITE } from '../../../../googlesitekit/datastore/site/constants';
 import { CORE_FORMS } from '../../../../googlesitekit/datastore/forms/constants';
 import ContainerNameTextField from './ContainerNameTextField';
-const { useSelect, useDispatch } = Data;
 
 export default function WebContainerNameTextField() {
-	const containerID = useSelect( ( select ) => select( STORE_NAME ).getContainerID() );
-	const siteName = useSelect( ( select ) => select( CORE_SITE ).getSiteName() );
-	const isSecondaryAMP = useSelect( ( select ) => select( CORE_SITE ).isSecondaryAMP() );
-	const referenceSiteURL = useSelect( ( select ) => select( CORE_SITE ).getReferenceSiteURL() );
-	const initialContainerName = useSelect( ( select ) => select( CORE_FORMS ).getValue( FORM_SETUP, 'containerName' ), [] );
+	const containerID = useSelect( ( select ) =>
+		select( MODULES_TAGMANAGER ).getContainerID()
+	);
+	const siteName = useSelect( ( select ) =>
+		select( CORE_SITE ).getSiteName()
+	);
+	const isAMP = useSelect( ( select ) => select( CORE_SITE ).isAMP() );
+	const referenceSiteURL = useSelect( ( select ) =>
+		select( CORE_SITE ).getReferenceSiteURL()
+	);
+	const initialContainerName = useSelect(
+		( select ) =>
+			select( CORE_FORMS ).getValue( FORM_SETUP, 'containerName' ),
+		[]
+	);
 
 	let containerName = siteName;
 	if ( ! containerName && isURL( referenceSiteURL ) ) {
@@ -60,14 +73,9 @@ export default function WebContainerNameTextField() {
 		return null;
 	}
 
-	const label = isSecondaryAMP
+	const label = isAMP
 		? __( 'Web Container Name', 'google-site-kit' )
 		: __( 'Container Name', 'google-site-kit' );
 
-	return (
-		<ContainerNameTextField
-			name="containerName"
-			label={ label }
-		/>
-	);
+	return <ContainerNameTextField name="containerName" label={ label } />;
 }

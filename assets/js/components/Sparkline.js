@@ -26,18 +26,25 @@ import PropTypes from 'prop-types';
  */
 import GoogleChart from './GoogleChart';
 
-function Sparkline( {
-	change,
-	data,
-	invertChangeColor,
-	loadingHeight,
-} ) {
+function Sparkline( { change, data, invertChangeColor, loadingHeight } ) {
 	if ( ! data ) {
 		return null;
 	}
 
-	const positiveColor = ! invertChangeColor ? 'green' : 'red';
-	const negativeColor = ! invertChangeColor ? 'red' : 'green';
+	const colors = [];
+	const green = 'green';
+	const red = 'red';
+
+	if ( change === null ) {
+		// Use green color by default if the change can't be determined.
+		colors.push( green );
+	} else {
+		const positiveColor = ! invertChangeColor ? green : red;
+		const negativeColor = ! invertChangeColor ? red : green;
+		colors.push(
+			0 <= ( parseFloat( change ) || 0 ) ? positiveColor : negativeColor
+		);
+	}
 
 	const chartOptions = {
 		title: '',
@@ -61,9 +68,7 @@ function Sparkline( {
 			ticks: [],
 		},
 		axes: [],
-		colors: [
-			0 <= ( parseFloat( change ) || 0 ) ? positiveColor : negativeColor,
-		],
+		colors,
 	};
 
 	// If the line is flat (zero change), we need to adjust it so

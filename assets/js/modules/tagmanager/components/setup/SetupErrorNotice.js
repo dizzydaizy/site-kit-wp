@@ -19,30 +19,53 @@
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import { STORE_NAME } from '../../datastore/constants';
-import { MODULES_ANALYTICS } from '../../../analytics/datastore/constants';
+import { useSelect } from 'googlesitekit-data';
+import { MODULES_TAGMANAGER } from '../../datastore/constants';
 import { CORE_MODULES } from '../../../../googlesitekit/modules/datastore/constants';
+import { MODULES_ANALYTICS_4 } from '../../../analytics-4/datastore/constants';
 import StoreErrorNotices from '../../../../components/StoreErrorNotices';
 import ErrorText from '../../../../components/ErrorText';
-const { useSelect } = Data;
 
 export default function SetupErrorNotice() {
+	const analyticsModuleAvailable = useSelect( ( select ) =>
+		select( CORE_MODULES ).isModuleAvailable( 'analytics-4' )
+	);
+
 	const analyticsErrors = [
 		// Check if activating Analytics failed.
-		useSelect( ( select ) => select( CORE_MODULES ).getErrorForAction( 'activateModule', [ 'analytics' ] ) ),
+		useSelect( ( select ) =>
+			select( CORE_MODULES ).getErrorForAction( 'activateModule', [
+				'analytics-4',
+			] )
+		),
 		// Check if saving Analytics settings failed.
 		useSelect( ( select ) => {
-			const settings = select( MODULES_ANALYTICS ).getSettings();
-			return select( MODULES_ANALYTICS ).getErrorForAction( 'saveSettings', [ settings ] );
+			if ( ! analyticsModuleAvailable ) {
+				return false;
+			}
+
+			const settings = select( MODULES_ANALYTICS_4 ).getSettings();
+			return select( MODULES_ANALYTICS_4 ).getErrorForAction(
+				'saveSettings',
+				[ settings ]
+			);
 		} ),
 	].filter( Boolean );
 
 	if ( analyticsErrors.length ) {
-		return analyticsErrors.map(
-			( { message, reconnectURL } ) => <ErrorText key={ message } message={ message } reconnectURL={ reconnectURL } />
-		);
+		return analyticsErrors.map( ( { message, reconnectURL } ) => (
+			<ErrorText
+				key={ message }
+				message={ message }
+				reconnectURL={ reconnectURL }
+			/>
+		) );
 	}
 
-	return <StoreErrorNotices moduleSlug="tagmanager" storeName={ STORE_NAME } />;
+	return (
+		<StoreErrorNotices
+			moduleSlug="tagmanager"
+			storeName={ MODULES_TAGMANAGER }
+		/>
+	);
 }

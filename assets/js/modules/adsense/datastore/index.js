@@ -19,32 +19,32 @@
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
+import { combineStores } from 'googlesitekit-data';
 import baseModuleStore from './base';
 import accounts from './accounts';
 import adunits from './adunits';
-import alerts from './alerts';
 import clients from './clients';
 import report from './report';
 import tags from './tags';
-import urlchannels from './urlchannels';
 import settings from './settings';
 import adblocker from './adblocker';
 import service from './service';
-import { STORE_NAME } from './constants';
+import sites from './sites';
+import adBlockingRecovery from './ad-blocking-recovery';
+import { MODULES_ADSENSE } from './constants';
 
-const store = Data.combineStores(
+const store = combineStores(
 	baseModuleStore,
 	accounts,
 	adunits,
-	alerts,
 	clients,
 	report,
 	tags,
-	urlchannels,
 	settings,
 	adblocker,
-	service
+	service,
+	sites,
+	adBlockingRecovery
 );
 
 export const initialState = store.initialState;
@@ -55,7 +55,7 @@ export const resolvers = store.resolvers;
 export const selectors = store.selectors;
 
 export const registerStore = ( registry ) => {
-	registry.registerStore( STORE_NAME, store );
+	registry.registerStore( MODULES_ADSENSE, store );
 };
 
 export default store;

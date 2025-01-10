@@ -1,9 +1,10 @@
 {
   "extends": [
-    "plugin:@wordpress/eslint-plugin/recommended-with-formatting",
+    "plugin:@wordpress/eslint-plugin/recommended",
     "plugin:jest/recommended",
     "plugin:sitekit/main",
-    "plugin:react-hooks/recommended"
+    "plugin:react-hooks/recommended",
+    "plugin:import/recommended"
   ],
   "env": {
     "browser": true,
@@ -31,11 +32,42 @@
     "jsdoc/require-returns": "error",
     "jsdoc/no-undefined-types": "error",
     "jsdoc/valid-types": "error",
+    "lodash/import-scope": [
+      "error",
+      "member"
+    ],
+    "require-await": "error",
+    "react/function-component-definition": [
+      "error",
+      {
+        "namedComponents": "function-declaration",
+        "unnamedComponents": "function-expression"
+      }
+    ],
+    "react/jsx-boolean-value": [
+      "error",
+      "never"
+    ],
+    "react/jsx-curly-brace-presence": "error",
+    "no-invalid-regexp": "error",
+    "no-useless-escape": "error",
+    "complexity": [
+      "error",
+      20
+    ],
     "no-restricted-globals": [
       "error",
       {
         "name": "window",
         "message": "Use 'global' instead."
+      }
+    ],
+    "no-use-before-define": [
+      "error",
+      {
+        "functions": false,
+        "classes": false,
+        "variables": false
       }
     ],
     "react/jsx-fragments": [
@@ -54,7 +86,46 @@
         "allowedTextDomain": "google-site-kit"
       }
     ],
-    "quotes": ["error", "single", { "allowTemplateLiterals": true, "avoidEscape": true }]
+    "quotes": [
+      "error",
+      "single",
+      {
+        "avoidEscape": true
+      }
+    ],
+    "curly": [
+      "error",
+      "all"
+    ],
+    "prettier/prettier": [
+      "error",
+      {},
+      {
+        "usePrettierrc": true
+      }
+    ]
+  },
+  "settings": {
+    "import/core-modules": [
+      "googlesitekit-data",
+      "googlesitekit-modules",
+      "googlesitekit-api",
+      "googlesitekit-widgets",
+      "googlesitekit-components",
+      "googlesitekit-notifications",
+      "@wordpress/i18n__non-shim",
+      "@wordpress/api-fetch__non-shim"
+    ],
+    "import/resolver": {
+      "alias": {
+        "map": [
+          [
+            "@wordpress-core",
+            "@wordpress"
+          ]
+        ]
+      }
+    }
   },
   "overrides": [
     {
@@ -71,7 +142,8 @@
       "rules": {
         "no-restricted-globals": [
           "off"
-        ]
+        ],
+        "react-hooks/rules-of-hooks": "off"
       }
     },
     {
@@ -93,7 +165,20 @@
         "assets/js/components/legacy*/**/*.js"
       ],
       "rules": {
-        "filenames/match-exported": ["off"]
+        "filenames/match-exported": [
+          "off"
+        ]
+      }
+    },
+    {
+      "files": [
+        "webpack/*",
+        "**/__factories__/*",
+        "*.stories.js",
+        "*.test.js"
+      ],
+      "rules": {
+        "sitekit/no-direct-date": "off"
       }
     }
   ],
@@ -101,6 +186,8 @@
     "filenames",
     "sitekit",
     "jsdoc",
-    "react-hooks"
+    "react",
+    "react-hooks",
+    "lodash"
   ]
 }

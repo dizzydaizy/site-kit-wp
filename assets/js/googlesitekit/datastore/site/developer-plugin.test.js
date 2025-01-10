@@ -23,10 +23,9 @@ import API from 'googlesitekit-api';
 import {
 	createTestRegistry,
 	muteFetch,
-	unsubscribeFromAll,
 	untilResolved,
-} from 'tests/js/utils';
-import { STORE_NAME } from './constants';
+} from '../../../../../tests/js/utils';
+import { CORE_SITE } from './constants';
 
 describe( 'core/site developer plugin state', () => {
 	const responseDeveloperPluginState = {
@@ -47,10 +46,6 @@ describe( 'core/site developer plugin state', () => {
 		registry = createTestRegistry();
 	} );
 
-	afterEach( () => {
-		unsubscribeFromAll( registry );
-	} );
-
 	afterAll( () => {
 		API.setUsingCache( true );
 	} );
@@ -58,24 +53,37 @@ describe( 'core/site developer plugin state', () => {
 	describe( 'actions', () => {
 		it( 'does not require any params', () => {
 			expect( () => {
-				muteFetch( /^\/google-site-kit\/v1\/core\/site\/data\/developer-plugin/ );
-				registry.dispatch( STORE_NAME ).fetchGetDeveloperPluginState();
+				muteFetch(
+					new RegExp(
+						'^/google-site-kit/v1/core/site/data/developer-plugin'
+					)
+				);
+				registry.dispatch( CORE_SITE ).fetchGetDeveloperPluginState();
 			} ).not.toThrow();
 		} );
 
 		describe( 'receiveGetDeveloperPluginState', () => {
 			it( 'requires the response param', () => {
 				expect( () => {
-					registry.dispatch( STORE_NAME ).receiveGetDeveloperPluginState();
+					registry
+						.dispatch( CORE_SITE )
+						.receiveGetDeveloperPluginState();
 				} ).toThrow( 'response is required.' );
 			} );
 
 			it( 'receives and sets developer plugin state', () => {
-				registry.dispatch( STORE_NAME ).receiveGetDeveloperPluginState( responseDeveloperPluginState );
+				registry
+					.dispatch( CORE_SITE )
+					.receiveGetDeveloperPluginState(
+						responseDeveloperPluginState
+					);
 
-				const { developerPluginState } = registry.stores[ STORE_NAME ].store.getState();
+				const { developerPluginState } =
+					registry.stores[ CORE_SITE ].store.getState();
 
-				expect( developerPluginState ).toMatchObject( responseDeveloperPluginState );
+				expect( developerPluginState ).toMatchObject(
+					responseDeveloperPluginState
+				);
 			} );
 		} );
 	} );
@@ -84,30 +92,53 @@ describe( 'core/site developer plugin state', () => {
 		describe( 'getDeveloperPluginState', () => {
 			it( 'uses a resolver to make a network request', async () => {
 				fetchMock.getOnce(
-					/^\/google-site-kit\/v1\/core\/site\/data\/developer-plugin/,
+					new RegExp(
+						'^/google-site-kit/v1/core/site/data/developer-plugin'
+					),
 					{ body: responseDeveloperPluginState, status: 200 }
 				);
 
-				const initialDeveloperPluginState = registry.select( STORE_NAME ).getDeveloperPluginState();
+				const initialDeveloperPluginState = registry
+					.select( CORE_SITE )
+					.getDeveloperPluginState();
 				// The developer plugin state will be its initial value while the developer plugin state is fetched.
 				expect( initialDeveloperPluginState ).toEqual( undefined );
-				await untilResolved( registry, STORE_NAME ).getDeveloperPluginState();
+				await untilResolved(
+					registry,
+					CORE_SITE
+				).getDeveloperPluginState();
 
-				const developerPluginState = registry.select( STORE_NAME ).getDeveloperPluginState();
+				const developerPluginState = registry
+					.select( CORE_SITE )
+					.getDeveloperPluginState();
 
 				expect( fetchMock ).toHaveFetchedTimes( 1 );
-				expect( developerPluginState ).toEqual( responseDeveloperPluginState );
+				expect( developerPluginState ).toEqual(
+					responseDeveloperPluginState
+				);
 			} );
 
 			it( 'does not make a network request if data is already in state', async () => {
-				registry.dispatch( STORE_NAME ).receiveGetDeveloperPluginState( responseDeveloperPluginState, {} );
+				registry
+					.dispatch( CORE_SITE )
+					.receiveGetDeveloperPluginState(
+						responseDeveloperPluginState,
+						{}
+					);
 
-				const developerPluginState = registry.select( STORE_NAME ).getDeveloperPluginState();
+				const developerPluginState = registry
+					.select( CORE_SITE )
+					.getDeveloperPluginState();
 
-				await untilResolved( registry, STORE_NAME ).getDeveloperPluginState();
+				await untilResolved(
+					registry,
+					CORE_SITE
+				).getDeveloperPluginState();
 
 				expect( fetchMock ).not.toHaveFetched();
-				expect( developerPluginState ).toEqual( responseDeveloperPluginState );
+				expect( developerPluginState ).toEqual(
+					responseDeveloperPluginState
+				);
 			} );
 
 			it( 'dispatches an error if the request fails', async () => {
@@ -117,15 +148,22 @@ describe( 'core/site developer plugin state', () => {
 					data: { status: 500 },
 				};
 				fetchMock.getOnce(
-					/^\/google-site-kit\/v1\/core\/site\/data\/developer-plugin/,
+					new RegExp(
+						'^/google-site-kit/v1/core/site/data/developer-plugin'
+					),
 					{ body: response, status: 500 }
 				);
 
-				registry.select( STORE_NAME ).getDeveloperPluginState();
+				registry.select( CORE_SITE ).getDeveloperPluginState();
 
-				await untilResolved( registry, STORE_NAME ).getDeveloperPluginState();
+				await untilResolved(
+					registry,
+					CORE_SITE
+				).getDeveloperPluginState();
 
-				const developerPluginState = registry.select( STORE_NAME ).getDeveloperPluginState();
+				const developerPluginState = registry
+					.select( CORE_SITE )
+					.getDeveloperPluginState();
 
 				expect( fetchMock ).toHaveFetchedTimes( 1 );
 				expect( developerPluginState ).toEqual( undefined );

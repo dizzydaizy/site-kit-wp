@@ -24,10 +24,9 @@ import {
 	createTestRegistry,
 	muteFetch,
 	subscribeUntil,
-	unsubscribeFromAll,
 	untilResolved,
 } from '../../../../../tests/js/utils';
-import { STORE_NAME } from './constants';
+import { CORE_SITE } from './constants';
 
 describe( 'core/site connection', () => {
 	const responseConnected = {
@@ -48,24 +47,24 @@ describe( 'core/site connection', () => {
 
 	beforeEach( () => {
 		registry = createTestRegistry();
-		store = registry.stores[ STORE_NAME ].store;
-		select = registry.select( STORE_NAME );
+		store = registry.stores[ CORE_SITE ].store;
+		select = registry.select( CORE_SITE );
 	} );
 
 	afterAll( () => {
 		API.setUsingCache( true );
 	} );
 
-	afterEach( () => {
-		unsubscribeFromAll( registry );
-	} );
-
 	describe( 'actions', () => {
 		describe( 'fetchGetConnection', () => {
 			it( 'does not require any params', () => {
 				expect( () => {
-					muteFetch( /^\/google-site-kit\/v1\/core\/site\/data\/connection/ );
-					registry.dispatch( STORE_NAME ).fetchGetConnection();
+					muteFetch(
+						new RegExp(
+							'^/google-site-kit/v1/core/site/data/connection'
+						)
+					);
+					registry.dispatch( CORE_SITE ).fetchGetConnection();
 				} ).not.toThrow();
 			} );
 		} );
@@ -73,13 +72,15 @@ describe( 'core/site connection', () => {
 		describe( 'receiveGetConnection', () => {
 			it( 'requires the response param', () => {
 				expect( () => {
-					registry.dispatch( STORE_NAME ).receiveGetConnection();
+					registry.dispatch( CORE_SITE ).receiveGetConnection();
 				} ).toThrow( 'response is required.' );
 			} );
 
 			it( 'receives and sets connection ', async () => {
 				const connection = { coolSite: true };
-				await registry.dispatch( STORE_NAME ).receiveGetConnection( connection );
+				await registry
+					.dispatch( CORE_SITE )
+					.receiveGetConnection( connection );
 
 				const state = store.getState();
 
@@ -92,7 +93,9 @@ describe( 'core/site connection', () => {
 		describe( 'getConnection', () => {
 			it( 'uses a resolver to make a network request', async () => {
 				fetchMock.getOnce(
-					/^\/google-site-kit\/v1\/core\/site\/data\/connection/,
+					new RegExp(
+						'^/google-site-kit/v1/core/site/data/connection'
+					),
 					{ body: responseConnected, status: 200 }
 				);
 
@@ -100,10 +103,9 @@ describe( 'core/site connection', () => {
 				// The connection info will be its initial value while the connection
 				// info is fetched.
 				expect( initialConnection ).toEqual( undefined );
-				await subscribeUntil( registry,
-					() => (
-						select.getConnection() !== undefined
-					),
+				await subscribeUntil(
+					registry,
+					() => select.getConnection() !== undefined
 				);
 
 				const connection = select.getConnection();
@@ -118,13 +120,16 @@ describe( 'core/site connection', () => {
 			} );
 
 			it( 'does not make a network request if data is already in state', async () => {
-				registry.dispatch( STORE_NAME ).receiveGetConnection( responseConnected, {} );
+				registry
+					.dispatch( CORE_SITE )
+					.receiveGetConnection( responseConnected, {} );
 
 				const connection = select.getConnection();
 
-				await subscribeUntil( registry, () => registry
-					.select( STORE_NAME )
-					.hasFinishedResolution( 'getConnection' )
+				await subscribeUntil( registry, () =>
+					registry
+						.select( CORE_SITE )
+						.hasFinishedResolution( 'getConnection' )
 				);
 
 				expect( fetchMock ).not.toHaveFetched();
@@ -138,18 +143,23 @@ describe( 'core/site connection', () => {
 					data: { status: 500 },
 				};
 				fetchMock.getOnce(
-					/^\/google-site-kit\/v1\/core\/site\/data\/connection/,
+					new RegExp(
+						'^/google-site-kit/v1/core/site/data/connection'
+					),
 					{ body: response, status: 500 }
 				);
 
 				select.getConnection();
-				await subscribeUntil( registry,
+				await subscribeUntil(
+					registry,
 					// TODO: We may want a selector for this, but for now this is fine
 					// because it's internal-only.
-					() => select.isFetchingGetConnection() === false,
+					() => select.isFetchingGetConnection() === false
 				);
 
 				const connection = select.getConnection();
+
+				await untilResolved( registry, CORE_SITE ).getConnection();
 
 				expect( fetchMock ).toHaveFetchedTimes( 1 );
 				expect( connection ).toEqual( undefined );
@@ -163,25 +173,31 @@ describe( 'core/site connection', () => {
 			[ 'isConnected', 'connected' ],
 			[ 'isResettable', 'resettable' ],
 			[ 'isSetupCompleted', 'setupCompleted' ],
-		] )( `%s`, ( selector, connectionKey ) => {
+		] )( '%s', ( selector, connectionKey ) => {
 			it( `references the "${ connectionKey }" key in the connection data`, () => {
-				registry.dispatch( STORE_NAME ).receiveGetConnection( responseConnected );
+				registry
+					.dispatch( CORE_SITE )
+					.receiveGetConnection( responseConnected );
 
-				const connection = registry.select( STORE_NAME ).getConnection();
+				const connection = registry.select( CORE_SITE ).getConnection();
 
 				expect( connection ).toHaveProperty( connectionKey );
 			} );
 
 			it( 'depends on the getConnection selector and resolver', async () => {
 				fetchMock.getOnce(
-					/^\/google-site-kit\/v1\/core\/site\/data\/connection/,
+					new RegExp(
+						'^/google-site-kit/v1/core/site/data/connection'
+					),
 					{ body: responseConnected, status: 200 }
 				);
 
 				expect( select[ selector ]() ).toBeUndefined();
-				await untilResolved( registry, STORE_NAME ).getConnection();
+				await untilResolved( registry, CORE_SITE ).getConnection();
 
-				expect( select[ selector ]() ).toEqual( responseConnected[ connectionKey ] );
+				expect( select[ selector ]() ).toEqual(
+					responseConnected[ connectionKey ]
+				);
 				expect( fetchMock ).toHaveFetchedTimes( 1 );
 			} );
 
@@ -192,12 +208,14 @@ describe( 'core/site connection', () => {
 					data: { status: 500 },
 				};
 				fetchMock.getOnce(
-					/^\/google-site-kit\/v1\/core\/site\/data\/connection/,
+					new RegExp(
+						'^/google-site-kit/v1/core/site/data/connection'
+					),
 					{ body: response, status: 500 }
 				);
 
 				select[ selector ]();
-				await untilResolved( registry, STORE_NAME ).getConnection();
+				await untilResolved( registry, CORE_SITE ).getConnection();
 
 				expect( select[ selector ]() ).toBeUndefined();
 				expect( fetchMock ).toHaveFetchedTimes( 1 );
@@ -205,8 +223,14 @@ describe( 'core/site connection', () => {
 			} );
 
 			it( 'returns undefined if connection info is not available', async () => {
-				muteFetch( /^\/google-site-kit\/v1\/core\/site\/data\/connection/ );
+				muteFetch(
+					new RegExp(
+						'^/google-site-kit/v1/core/site/data/connection'
+					)
+				);
 				expect( select[ selector ]() ).toBeUndefined();
+
+				await untilResolved( registry, CORE_SITE ).getConnection();
 			} );
 		} );
 	} );

@@ -31,8 +31,10 @@ export default function MetricsLearnMoreLink() {
 		<Link
 			href="https://web.dev/user-centric-performance-metrics/#how-metrics-are-measured"
 			external
-			inherit
-			aria-label={ __( 'Learn more how metrics are measured.', 'google-site-kit' ) }
+			aria-label={ __(
+				'Learn more how metrics are measured.',
+				'google-site-kit'
+			) }
 		>
 			{ __( 'Learn more', 'google-site-kit' ) }
 		</Link>

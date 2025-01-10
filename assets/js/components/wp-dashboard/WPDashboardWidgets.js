@@ -29,66 +29,109 @@ import { Fragment } from '@wordpress/element';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
+import { useSelect } from 'googlesitekit-data';
+import { CORE_MODULES } from '../../googlesitekit/modules/datastore/constants';
+import { CORE_USER } from '../../googlesitekit/datastore/user/constants';
+import { withWPDashboardWidgetComponentProps } from '../../googlesitekit/widgets/util/get-widget-component-props';
 import WPDashboardImpressions from './WPDashboardImpressions';
 import WPDashboardClicks from './WPDashboardClicks';
-import WPDashboardUniqueVisitors from './WPDashboardUniqueVisitors';
-import WPDashboardSessionDuration from './WPDashboardSessionDuration';
-import WPDashboardPopularPages from './WPDashboardPopularPages';
-import WPDashboardIdeaHub from './WPDashboardIdeaHub';
-import ActivateModuleCTA from '../ActivateModuleCTA';
-import CompleteModuleActivationCTA from '../CompleteModuleActivationCTA';
-import { CORE_MODULES } from '../../googlesitekit/modules/datastore/constants';
-import { withWidgetComponentProps } from '../../googlesitekit/widgets/util/get-widget-component-props';
-const { useSelect } = Data;
+import WPDashboardUniqueVisitorsGA4 from './WPDashboardUniqueVisitorsGA4';
+import WPDashboardSessionDurationGA4 from './WPDashboardSessionDurationGA4';
+import WPDashboardPopularPagesGA4 from './WPDashboardPopularPagesGA4';
+import WPDashboardUniqueVisitorsChartGA4 from './WPDashboardUniqueVisitorsChartGA4';
+import WPDashboardActivateAnalyticsCTA from './WPDashboardActivateAnalyticsCTA';
+import DataBlockGroup from '../DataBlockGroup';
 
 // Widget slugs.
 const WIDGET_IMPRESSIONS = 'wpDashboardImpressions';
 const WIDGET_CLICKS = 'wpDashboardClicks';
 const WIDGET_VISITORS = 'wpDashboardUniqueVisitors';
+const WIDGET_VISITORS_CHART = 'wpDashboardUniqueVisitorsChart';
 const WIDGET_SESSION_DURATION = 'wpDashboardSessionDuration';
 const WIDGET_POPULAR_PAGES = 'wpDashboardPopularPages';
-// Search Console widgets.
-const WPDashboardImpressionsWidget = withWidgetComponentProps( WIDGET_IMPRESSIONS )( WPDashboardImpressions );
-const WPDashboardClicksWidget = withWidgetComponentProps( WIDGET_CLICKS )( WPDashboardClicks );
-// Analytics Widgets.
-const WPDashboardUniqueVisitorsWidget = withWidgetComponentProps( WIDGET_VISITORS )( WPDashboardUniqueVisitors );
-const WPDashboardSessionDurationWidget = withWidgetComponentProps( WIDGET_SESSION_DURATION )( WPDashboardSessionDuration );
-const WPDashboardPopularPagesWidget = withWidgetComponentProps( WIDGET_POPULAR_PAGES )( WPDashboardPopularPages );
 
-const WPDashboardWidgets = () => {
-	const analyticsModuleActive = useSelect( ( select ) => select( CORE_MODULES ).isModuleActive( 'analytics' ) );
-	const analyticsModuleConnected = useSelect( ( select ) => select( CORE_MODULES ).isModuleConnected( 'analytics' ) );
+// Search Console widgets.
+const WPDashboardImpressionsWidget = withWPDashboardWidgetComponentProps(
+	WIDGET_IMPRESSIONS
+)( WPDashboardImpressions );
+const WPDashboardClicksWidget =
+	withWPDashboardWidgetComponentProps( WIDGET_CLICKS )( WPDashboardClicks );
+
+// Analytics 4 Widgets.
+const WPDashboardUniqueVisitorsGA4Widget = withWPDashboardWidgetComponentProps(
+	WIDGET_VISITORS
+)( WPDashboardUniqueVisitorsGA4 );
+const WPDashboardSessionDurationGA4Widget = withWPDashboardWidgetComponentProps(
+	WIDGET_SESSION_DURATION
+)( WPDashboardSessionDurationGA4 );
+const WPDashboardPopularPagesGA4Widget = withWPDashboardWidgetComponentProps(
+	WIDGET_POPULAR_PAGES
+)( WPDashboardPopularPagesGA4 );
+const WPDashboardUniqueVisitorsChartGA4Widget =
+	withWPDashboardWidgetComponentProps( WIDGET_VISITORS_CHART )(
+		WPDashboardUniqueVisitorsChartGA4
+	);
+
+export default function WPDashboardWidgets() {
+	const analyticsModule = useSelect( ( select ) =>
+		select( CORE_MODULES ).getModule( 'analytics-4' )
+	);
+
+	const canViewSharedAnalytics = useSelect( ( select ) =>
+		select( CORE_USER ).hasAccessToShareableModule( 'analytics-4' )
+	);
+	const canViewSharedSearchConsole = useSelect( ( select ) =>
+		select( CORE_USER ).hasAccessToShareableModule( 'search-console' )
+	);
+
+	if ( analyticsModule === undefined ) {
+		return null;
+	}
+
+	const {
+		active: analyticsModuleActive,
+		connected: analyticsModuleConnected,
+	} = analyticsModule;
+
+	const analyticsModuleActiveAndConnected =
+		analyticsModuleActive && analyticsModuleConnected;
 
 	return (
-		<div className={ classnames(
-			'googlesitekit-wp-dashboard-stats',
-			{ 'googlesitekit-wp-dashboard-stats--fourup': analyticsModuleActive && analyticsModuleConnected }
-		) }>
-			<WPDashboardIdeaHub />
-			{ analyticsModuleActive && analyticsModuleConnected && (
+		<DataBlockGroup
+			className={ classnames(
+				'googlesitekit-wp-dashboard-stats googlesitekit-wp-dashboard-stats--twoup',
+				{
+					'googlesitekit-wp-dashboard-stats--fourup':
+						analyticsModuleActiveAndConnected,
+				}
+			) }
+		>
+			{ analyticsModuleActiveAndConnected && canViewSharedAnalytics && (
 				<Fragment>
-					<WPDashboardUniqueVisitorsWidget />
-					<WPDashboardSessionDurationWidget />
+					<WPDashboardUniqueVisitorsGA4Widget />
+					<WPDashboardSessionDurationGA4Widget />
 				</Fragment>
 			) }
-			<WPDashboardImpressionsWidget />
-			<WPDashboardClicksWidget />
-			{ ( ! analyticsModuleConnected || ! analyticsModuleActive ) && (
+
+			{ canViewSharedSearchConsole && (
+				<Fragment>
+					<WPDashboardImpressionsWidget />
+					<WPDashboardClicksWidget />
+				</Fragment>
+			) }
+
+			{ ! analyticsModuleActiveAndConnected && (
 				<div className="googlesitekit-wp-dashboard-stats__cta">
-					{ ! analyticsModuleActive && (
-						<ActivateModuleCTA moduleSlug="analytics" />
-					) }
-					{ analyticsModuleActive && (
-						<CompleteModuleActivationCTA moduleSlug="analytics" />
-					) }
+					<WPDashboardActivateAnalyticsCTA />
 				</div>
 			) }
-			{ analyticsModuleActive && analyticsModuleConnected && (
-				<WPDashboardPopularPagesWidget />
-			) }
-		</div>
-	);
-};
 
-export default WPDashboardWidgets;
+			{ analyticsModuleActiveAndConnected && canViewSharedAnalytics && (
+				<Fragment>
+					<WPDashboardUniqueVisitorsChartGA4Widget />
+					<WPDashboardPopularPagesGA4Widget />
+				</Fragment>
+			) }
+		</DataBlockGroup>
+	);
+}

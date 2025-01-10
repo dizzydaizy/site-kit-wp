@@ -20,27 +20,42 @@
  * WordPress dependencies
  */
 import { Fragment, useCallback } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf, _n } from '@wordpress/i18n';
 
 /**
  * Internal dependencies.
  */
-import Data from 'googlesitekit-data';
+import { useSelect } from 'googlesitekit-data';
 import Link from '../Link';
+import { Cell, Grid, Row } from '../../material-components';
 import { CORE_SITE } from '../../googlesitekit/datastore/site/constants';
+import { CORE_USER } from '../../googlesitekit/datastore/user/constants';
 import { decodeHTMLEntity, trackEvent } from '../../util';
 import AdminBarWidgets from './AdminBarWidgets';
-const { useSelect } = Data;
+import useViewContext from '../../hooks/useViewContext';
 
 export default function AdminBarApp() {
-	const currentEntityURL = useSelect( ( select ) => select( CORE_SITE ).getCurrentEntityURL() );
-	const currentEntityTitle = useSelect( ( select ) => select( CORE_SITE ).getCurrentEntityTitle() );
-	const detailsURL = useSelect( ( select ) => select( CORE_SITE ).getAdminURL( 'googlesitekit-dashboard', { permaLink: currentEntityURL } ) );
+	const viewContext = useViewContext();
+
+	const currentEntityURL = useSelect( ( select ) =>
+		select( CORE_SITE ).getCurrentEntityURL()
+	);
+	const currentEntityTitle = useSelect( ( select ) =>
+		select( CORE_SITE ).getCurrentEntityTitle()
+	);
+	const detailsURL = useSelect( ( select ) =>
+		select( CORE_SITE ).getAdminURL( 'googlesitekit-dashboard', {
+			permaLink: currentEntityURL,
+		} )
+	);
+	const dateRangeLength = useSelect( ( select ) =>
+		select( CORE_USER ).getDateRangeNumberOfDays()
+	);
 
 	const onMoreDetailsClick = useCallback( async () => {
-		await trackEvent( 'admin_bar', 'post_details_click' );
+		await trackEvent( viewContext, 'open_urldetails' );
 		document.location.assign( detailsURL );
-	}, [ detailsURL ] );
+	}, [ detailsURL, viewContext ] );
 
 	// Only show the adminbar on valid pages and posts.
 	if ( ! detailsURL || ! currentEntityURL ) {
@@ -49,38 +64,36 @@ export default function AdminBarApp() {
 
 	return (
 		<Fragment>
-			<div className="mdc-layout-grid">
-				<div className="mdc-layout-grid__inner">
-					<div className="
-						mdc-layout-grid__cell
-						mdc-layout-grid__cell--span-3
-						mdc-layout-grid__cell--align-middle
-					">
+			<Grid>
+				<Row>
+					<Cell alignMiddle size={ 3 }>
 						<div className="googlesitekit-adminbar__subtitle">
 							{ __( 'Stats for', 'google-site-kit' ) }
 						</div>
 						<div className="googlesitekit-adminbar__title">
 							{ currentEntityTitle
 								? decodeHTMLEntity( currentEntityTitle )
-								: currentEntityURL
-							}
+								: currentEntityURL }
+							<p className="googlesitekit-adminbar__title--date-range">
+								{ sprintf(
+									/* translators: %s: number of days */
+									_n(
+										'over the last %s day',
+										'over the last %s days',
+										dateRangeLength,
+										'google-site-kit'
+									),
+									dateRangeLength
+								) }
+							</p>
 						</div>
-					</div>
+					</Cell>
 
-					<div className="
-						mdc-layout-grid__cell
-						mdc-layout-grid__cell--span-8-tablet
-						mdc-layout-grid__cell--span-7-desktop
-						mdc-layout-grid__cell--align-middle
-					">
+					<Cell alignMiddle mdSize={ 8 } lgSize={ 7 }>
 						<AdminBarWidgets />
-					</div>
+					</Cell>
 
-					<div className="
-						mdc-layout-grid__cell
-						mdc-layout-grid__cell--span-2
-						mdc-layout-grid__cell--align-middle
-					">
+					<Cell alignMiddle size={ 2 }>
 						<Link
 							className="googlesitekit-adminbar__link"
 							href="#"
@@ -88,9 +101,9 @@ export default function AdminBarApp() {
 						>
 							{ __( 'More details', 'google-site-kit' ) }
 						</Link>
-					</div>
-				</div>
-			</div>
+					</Cell>
+				</Row>
+			</Grid>
 			<Link
 				className="googlesitekit-adminbar__link googlesitekit-adminbar__link--mobile"
 				href="#"

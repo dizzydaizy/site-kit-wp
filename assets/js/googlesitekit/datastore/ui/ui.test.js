@@ -19,8 +19,13 @@
 /**
  * Internal dependencies
  */
-import { createTestRegistry } from 'tests/js/utils';
-import { STORE_NAME } from './constants';
+import {
+	createTestRegistry,
+	untilResolved,
+} from '../../../../../tests/js/utils';
+import { CORE_UI } from './constants';
+import { LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION } from '../../../components/OverlayNotification/LinkAnalyticsAndAdSenseAccountsOverlayNotification';
+import { CORE_USER } from '../user/constants';
 
 describe( 'core/ui store', () => {
 	let registry;
@@ -30,167 +35,439 @@ describe( 'core/ui store', () => {
 	} );
 
 	describe( 'actions', () => {
-		describe( 'setValues', () => {
-			it( 'requires the values param', () => {
-				expect( () => {
-					registry.dispatch( STORE_NAME ).setValues();
-				} ).toThrow( 'values must be an object.' );
-			} );
+		describe( 'resetInViewHook', () => {
+			it( 'increments the value of core/ui useInViewResetCount', async () => {
+				const resetCount = registry
+					.select( CORE_UI )
+					.getInViewResetCount();
 
-			it( 'requires the values param to be an object not an array', () => {
-				expect( () => {
-					registry.dispatch( STORE_NAME ).setValues( [] );
-				} ).toThrow( 'values must be an object.' );
-			} );
+				// The reset count starts at zero.
+				expect( resetCount ).toBe( 0 );
 
-			it( 'does not throw if values is an object', () => {
-				expect( () => {
-					registry.dispatch( STORE_NAME ).setValues( {} );
-				} ).not.toThrow();
-			} );
+				await registry.dispatch( CORE_UI ).resetInViewHook();
 
-			it( 'requires the values param to be an object not a string', () => {
-				expect( () => {
-					registry.dispatch( STORE_NAME ).setValues( 'values' );
-				} ).toThrow( 'values must be an object.' );
-			} );
+				const updatedResetCount = registry
+					.select( CORE_UI )
+					.getInViewResetCount();
 
-			it( 'does not overwrite unrelated keys', () => {
-				registry.dispatch( STORE_NAME ).setValues( { key1: 'value1', key2: 'value2' } );
-
-				registry.dispatch( STORE_NAME ).setValues( { key1: 'value3' } );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key2' );
-				expect( uiValue ).toEqual( 'value2' );
-			} );
-
-			it( 'returns a newly-set value if a new value for an existing key is set', () => {
-				registry.dispatch( STORE_NAME ).setValues( { key1: 'value1', key2: 'value2' } );
-
-				registry.dispatch( STORE_NAME ).setValues( { key1: 'value3' } );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key1' );
-				expect( uiValue ).toEqual( 'value3' );
-			} );
-
-			it( 'does not overwrite unrelated keys when an empty object is supplied to values', () => {
-				registry.dispatch( STORE_NAME ).setValues( { key1: 'value1', key2: 'value2' } );
-
-				registry.dispatch( STORE_NAME ).setValues( {} );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key2' );
-				expect( uiValue ).toEqual( 'value2' );
-			} );
-
-			it( 'works with empty values where the key value is updated', () => {
-				registry.dispatch( STORE_NAME ).setValues( {} );
-
-				registry.dispatch( STORE_NAME ).setValues( { key1: 'value1', key2: 'value2' } );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key2' );
-				expect( uiValue ).toEqual( 'value2' );
-			} );
-
-			it( 'preserves data from state when new data is assigned', () => {
-				registry.dispatch( STORE_NAME ).setValues( { key1: 'value1', key2: 'value2' } );
-
-				registry.dispatch( STORE_NAME ).setValues( { key3: 'value3', key4: 'value4' } );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key2' );
-				expect( uiValue ).toEqual( 'value2' );
-			} );
-
-			it( 'sets object values', () => {
-				registry.dispatch( STORE_NAME ).setValues( { key1: { childKey1: 'childValue1' } } );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key1' );
-				expect( uiValue ).toEqual( { childKey1: 'childValue1' } );
-			} );
-
-			it( 'sets boolean values', () => {
-				registry.dispatch( STORE_NAME ).setValues( { key1: false } );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key1' );
-				expect( uiValue ).toEqual( false );
-			} );
-
-			it( 'sets array values', () => {
-				registry.dispatch( STORE_NAME ).setValues( { key1: [ 'childKey1', 'childKey2', 'childKey3' ] } );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key1' );
-				expect( uiValue ).toEqual( [ 'childKey1', 'childKey2', 'childKey3' ] );
+				expect( updatedResetCount ).toBe( 1 );
 			} );
 		} );
 
-		describe( 'setValue', () => {
-			it( 'requires the key param', () => {
-				expect( () => {
-					registry.dispatch( STORE_NAME ).setValue();
-				} ).toThrow( 'key is required.' );
-			} );
+		describe( 'setIsOnline', () => {
+			it( 'sets the isOnline value', async () => {
+				const isOnline = registry.select( CORE_UI ).getIsOnline();
 
-			it( 'does not throw with a key', () => {
-				expect( () => {
-					registry.dispatch( STORE_NAME ).setValue( 'key1', 'value1' );
-				} ).not.toThrow();
-			} );
+				// isOnline has initial state set to true.
+				expect( isOnline ).toBe( true );
 
-			it( 'works with key and value', () => {
-				registry.dispatch( STORE_NAME ).setValue( 'key1', 'value1' );
+				await registry.dispatch( CORE_UI ).setIsOnline( false );
 
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key1' );
-				expect( uiValue ).toEqual( 'value1' );
-			} );
+				const updatedIsOnline = registry
+					.select( CORE_UI )
+					.getIsOnline();
 
-			it( 'works with a boolean value', () => {
-				registry.dispatch( STORE_NAME ).setValue( 'key1', false );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key1' );
-				expect( uiValue ).toEqual( false );
-			} );
-
-			it( 'works with the value as an object', () => {
-				registry.dispatch( STORE_NAME ).setValue( 'key1', { childKey1: 'childValue1', childKey2: 'childValue2' } );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key1' );
-				expect( uiValue ).toEqual( { childKey1: 'childValue1', childKey2: 'childValue2' } );
-			} );
-
-			it( 'works with the value as an array', () => {
-				registry.dispatch( STORE_NAME ).setValue( 'key1', [ 'childKey1', 'childKey2', 'childKey3' ] );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key1' );
-				expect( uiValue ).toEqual( [ 'childKey1', 'childKey2', 'childKey3' ] );
-			} );
-
-			it( 'works with the value undefined', () => {
-				registry.dispatch( STORE_NAME ).setValue( 'key1' );
-
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key1' );
-				expect( uiValue ).toEqual( undefined );
+				expect( updatedIsOnline ).toBe( false );
 			} );
 		} );
-	} );
 
-	describe( 'selectors', () => {
-		describe( 'getValue', () => {
-			it( 'works with a key that does not exist', () => {
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key2' );
-				expect( uiValue ).toEqual( undefined );
+		describe( 'setOverlayNotificationToShow', () => {
+			const fetchGetDismissedItems = new RegExp(
+				'^/google-site-kit/v1/core/user/data/dismissed-items'
+			);
+			const fetchDismissItem = new RegExp(
+				'^/google-site-kit/v1/core/user/data/dismiss-item'
+			);
+
+			it( 'sets the activeOverlayNotification value', async () => {
+				const activeOverlayNotification = registry
+					.select( CORE_UI )
+					.getValue( 'activeOverlayNotification' );
+
+				expect( activeOverlayNotification ).toBe( undefined );
+
+				await registry
+					.dispatch( CORE_UI )
+					.setOverlayNotificationToShow(
+						LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION
+					);
+
+				const updatedactiveOverlayNotification = registry
+					.select( CORE_UI )
+					.getValue( 'activeOverlayNotification' );
+
+				expect( updatedactiveOverlayNotification ).toBe(
+					LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION
+				);
 			} );
 
-			it( 'works with key where the key does not exist', () => {
-				registry.dispatch( STORE_NAME ).setValues( { key1: 'value1', key2: 'value2' } );
+			it( 'it does not set the activeOverlayNotification value if it is already set', () => {
+				const activeOverlayNotification = registry
+					.select( CORE_UI )
+					.getValue( 'activeOverlayNotification' );
 
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key3' );
-				expect( uiValue ).toEqual( undefined );
+				expect( activeOverlayNotification ).toBe( undefined );
+
+				// Awaiting is itentionally omitted to simulate race condition.
+				registry
+					.dispatch( CORE_UI )
+					.setOverlayNotificationToShow(
+						LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION
+					);
+
+				registry
+					.dispatch( CORE_UI )
+					.setOverlayNotificationToShow( 'TestNotification' );
+
+				const updatedactiveOverlayNotification = registry
+					.select( CORE_UI )
+					.getValue( 'activeOverlayNotification' );
+
+				expect( updatedactiveOverlayNotification ).toBe(
+					LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION
+				);
 			} );
 
-			it( 'works with an existing key', () => {
-				registry.dispatch( STORE_NAME ).setValues( { key1: 'value1', key2: 'value2' } );
+			describe( 'dismissOverlayNotification', () => {
+				it( 'resets the activeOverlayNotification value and dismisses the item from the current user profile', async () => {
+					fetchMock.getOnce( fetchGetDismissedItems, { body: [] } );
+					fetchMock.postOnce( fetchDismissItem, {
+						body: [ LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION ],
+					} );
 
-				const uiValue = registry.select( STORE_NAME ).getValue( 'key2' );
-				expect( uiValue ).toEqual( 'value2' );
+					await registry
+						.dispatch( CORE_UI )
+						.setOverlayNotificationToShow(
+							LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION
+						);
+
+					const activeOverlayNotification = registry
+						.select( CORE_UI )
+						.getValue( 'activeOverlayNotification' );
+
+					registry
+						.select( CORE_USER )
+						.isItemDismissed(
+							LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION
+						);
+
+					await untilResolved(
+						registry,
+						CORE_USER
+					).getDismissedItems();
+
+					const isDimissed = registry
+						.select( CORE_USER )
+						.isItemDismissed(
+							LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION
+						);
+
+					expect( activeOverlayNotification ).toBe(
+						LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION
+					);
+					expect( isDimissed ).toBe( false );
+
+					await registry
+						.dispatch( CORE_UI )
+						.dismissOverlayNotification(
+							LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION
+						);
+
+					const updatedActiveOverlayNotification = registry
+						.select( CORE_UI )
+						.getValue( 'activeOverlayNotification' );
+
+					const updatedIsDimissed = registry
+						.select( CORE_USER )
+						.isItemDismissed(
+							LINK_ANALYTICS_ADSENSE_OVERLAY_NOTIFICATION
+						);
+
+					expect( updatedActiveOverlayNotification ).toBe(
+						undefined
+					);
+					expect( updatedIsDimissed ).toBe( true );
+				} );
+			} );
+
+			describe( 'setValues', () => {
+				it( 'requires the values param', () => {
+					expect( () => {
+						registry.dispatch( CORE_UI ).setValues();
+					} ).toThrow( 'values must be an object.' );
+				} );
+
+				it( 'requires the values param to be an object not an array', () => {
+					expect( () => {
+						registry.dispatch( CORE_UI ).setValues( [] );
+					} ).toThrow( 'values must be an object.' );
+				} );
+
+				it( 'does not throw if values is an object', () => {
+					expect( () => {
+						registry.dispatch( CORE_UI ).setValues( {} );
+					} ).not.toThrow();
+				} );
+
+				it( 'requires the values param to be an object not a string', () => {
+					expect( () => {
+						registry.dispatch( CORE_UI ).setValues( 'values' );
+					} ).toThrow( 'values must be an object.' );
+				} );
+
+				it( 'does not overwrite unrelated keys', () => {
+					registry
+						.dispatch( CORE_UI )
+						.setValues( { key1: 'value1', key2: 'value2' } );
+
+					registry
+						.dispatch( CORE_UI )
+						.setValues( { key1: 'value3' } );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key2' );
+					expect( uiValue ).toEqual( 'value2' );
+				} );
+
+				it( 'returns a newly-set value if a new value for an existing key is set', () => {
+					registry
+						.dispatch( CORE_UI )
+						.setValues( { key1: 'value1', key2: 'value2' } );
+
+					registry
+						.dispatch( CORE_UI )
+						.setValues( { key1: 'value3' } );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key1' );
+					expect( uiValue ).toEqual( 'value3' );
+				} );
+
+				it( 'does not overwrite unrelated keys when an empty object is supplied to values', () => {
+					registry
+						.dispatch( CORE_UI )
+						.setValues( { key1: 'value1', key2: 'value2' } );
+
+					registry.dispatch( CORE_UI ).setValues( {} );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key2' );
+					expect( uiValue ).toEqual( 'value2' );
+				} );
+
+				it( 'works with empty values where the key value is updated', () => {
+					registry.dispatch( CORE_UI ).setValues( {} );
+
+					registry
+						.dispatch( CORE_UI )
+						.setValues( { key1: 'value1', key2: 'value2' } );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key2' );
+					expect( uiValue ).toEqual( 'value2' );
+				} );
+
+				it( 'preserves data from state when new data is assigned', () => {
+					registry
+						.dispatch( CORE_UI )
+						.setValues( { key1: 'value1', key2: 'value2' } );
+
+					registry
+						.dispatch( CORE_UI )
+						.setValues( { key3: 'value3', key4: 'value4' } );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key2' );
+					expect( uiValue ).toEqual( 'value2' );
+				} );
+
+				it( 'sets object values', () => {
+					registry
+						.dispatch( CORE_UI )
+						.setValues( { key1: { childKey1: 'childValue1' } } );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key1' );
+					expect( uiValue ).toEqual( { childKey1: 'childValue1' } );
+				} );
+
+				it( 'sets boolean values', () => {
+					registry.dispatch( CORE_UI ).setValues( { key1: false } );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key1' );
+					expect( uiValue ).toEqual( false );
+				} );
+
+				it( 'sets array values', () => {
+					registry.dispatch( CORE_UI ).setValues( {
+						key1: [ 'childKey1', 'childKey2', 'childKey3' ],
+					} );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key1' );
+					expect( uiValue ).toEqual( [
+						'childKey1',
+						'childKey2',
+						'childKey3',
+					] );
+				} );
+			} );
+
+			describe( 'setValue', () => {
+				it( 'requires the key param', () => {
+					expect( () => {
+						registry.dispatch( CORE_UI ).setValue();
+					} ).toThrow( 'key is required.' );
+				} );
+
+				it( 'does not throw with a key', () => {
+					expect( () => {
+						registry
+							.dispatch( CORE_UI )
+							.setValue( 'key1', 'value1' );
+					} ).not.toThrow();
+				} );
+
+				it( 'works with key and value', () => {
+					registry.dispatch( CORE_UI ).setValue( 'key1', 'value1' );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key1' );
+					expect( uiValue ).toEqual( 'value1' );
+				} );
+
+				it( 'works with a boolean value', () => {
+					registry.dispatch( CORE_UI ).setValue( 'key1', false );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key1' );
+					expect( uiValue ).toEqual( false );
+				} );
+
+				it( 'works with the value as an object', () => {
+					registry.dispatch( CORE_UI ).setValue( 'key1', {
+						childKey1: 'childValue1',
+						childKey2: 'childValue2',
+					} );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key1' );
+					expect( uiValue ).toEqual( {
+						childKey1: 'childValue1',
+						childKey2: 'childValue2',
+					} );
+				} );
+
+				it( 'works with the value as an array', () => {
+					registry
+						.dispatch( CORE_UI )
+						.setValue( 'key1', [
+							'childKey1',
+							'childKey2',
+							'childKey3',
+						] );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key1' );
+					expect( uiValue ).toEqual( [
+						'childKey1',
+						'childKey2',
+						'childKey3',
+					] );
+				} );
+
+				it( 'works with the value undefined', () => {
+					registry.dispatch( CORE_UI ).setValue( 'key1' );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key1' );
+					expect( uiValue ).toEqual( undefined );
+				} );
+			} );
+		} );
+
+		describe( 'selectors', () => {
+			describe( 'getValue', () => {
+				it( 'works with a key that does not exist', () => {
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key2' );
+					expect( uiValue ).toEqual( undefined );
+				} );
+
+				it( 'works with key where the key does not exist', () => {
+					registry
+						.dispatch( CORE_UI )
+						.setValues( { key1: 'value1', key2: 'value2' } );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key3' );
+					expect( uiValue ).toEqual( undefined );
+				} );
+
+				it( 'works with an existing key', () => {
+					registry
+						.dispatch( CORE_UI )
+						.setValues( { key1: 'value1', key2: 'value2' } );
+
+					const uiValue = registry
+						.select( CORE_UI )
+						.getValue( 'key2' );
+					expect( uiValue ).toEqual( 'value2' );
+				} );
+			} );
+
+			describe( 'getInViewResetCount', () => {
+				it( 'returns a specific key in state', () => {
+					const resetCount = registry
+						.select( CORE_UI )
+						.getInViewResetCount();
+
+					// The reset count starts at zero.
+					expect( resetCount ).toBe( 0 );
+
+					registry
+						.dispatch( CORE_UI )
+						.setValue( 'useInViewResetCount', 2 );
+
+					const updatedResetCount = registry
+						.select( CORE_UI )
+						.getInViewResetCount();
+
+					expect( updatedResetCount ).toBe( 2 );
+				} );
+			} );
+
+			describe( 'getIsOnline', () => {
+				it( 'returns isOnline value from the state', () => {
+					const isOnline = registry.select( CORE_UI ).getIsOnline();
+
+					// isOnline has initial state set to true.
+					expect( isOnline ).toBe( true );
+
+					registry.dispatch( CORE_UI ).setValue( 'isOnline', false );
+
+					const updatedIsOnline = registry
+						.select( CORE_UI )
+						.getIsOnline();
+
+					expect( updatedIsOnline ).toBe( false );
+				} );
 			} );
 		} );
 	} );

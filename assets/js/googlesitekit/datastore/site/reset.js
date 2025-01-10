@@ -20,11 +20,9 @@
  * Internal dependencies
  */
 import API from 'googlesitekit-api';
-import Data from 'googlesitekit-data';
-import { STORE_NAME } from './constants';
+import { createRegistrySelector, combineStores } from 'googlesitekit-data';
+import { CORE_SITE } from './constants';
 import { createFetchStore } from '../../data/create-fetch-store';
-
-const { createRegistrySelector } = Data;
 
 const fetchResetStore = createFetchStore( {
 	baseName: 'reset',
@@ -59,18 +57,15 @@ const baseSelectors = {
 	 * @return {boolean} `true` if resetting is in-flight; `false` if not.
 	 */
 	isDoingReset: createRegistrySelector( ( select ) => () => {
-		return select( STORE_NAME ).isFetchingReset();
+		return select( CORE_SITE ).isFetchingReset();
 	} ),
 };
 
-const store = Data.combineStores(
-	fetchResetStore,
-	{
-		initialState: baseInitialState,
-		actions: baseActions,
-		selectors: baseSelectors,
-	}
-);
+const store = combineStores( fetchResetStore, {
+	initialState: baseInitialState,
+	actions: baseActions,
+	selectors: baseSelectors,
+} );
 
 export const initialState = store.initialState;
 export const actions = store.actions;

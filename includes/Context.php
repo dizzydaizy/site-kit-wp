@@ -28,7 +28,9 @@ class Context {
 	/**
 	 * Primary "standard" AMP website mode.
 	 *
-	 * @since 1.0.0
+	 * @since 1.0.0 Originally introduced.
+	 * @since 1.36.0 Marked as unused, see description.
+	 * @since 1.108.0 Removed the description and reinstated.
 	 * @var string
 	 */
 	const AMP_MODE_PRIMARY = 'primary';
@@ -143,11 +145,6 @@ class Context {
 	/**
 	 * Determines whether the plugin is running in network mode.
 	 *
-	 * Network mode is active under the following conditions:
-	 * * Multisite is enabled.
-	 * * The plugin is network-active.
-	 * * The site's domain matches the network's domain (which means it is a subdirectory site).
-	 *
 	 * @since 1.0.0
 	 *
 	 * @return bool True if the plugin is in network mode, false otherwise.
@@ -158,11 +155,16 @@ class Context {
 			return false;
 		}
 
-		$site    = get_site( get_current_blog_id() );
-		$network = get_network( $site->network_id );
-
-		// Use network mode when the site's domain is the same as the network's domain.
-		return $network && $site->domain === $network->domain;
+		/**
+		 * Filters whether network mode is active in Site Kit.
+		 *
+		 * This is always false by default since Site Kit does not support a network mode yet.
+		 *
+		 * @since 1.86.0
+		 *
+		 * @param bool $active Whether network mode is active.
+		 */
+		return (bool) apply_filters( 'googlesitekit_is_network_mode', false );
 	}
 
 	/**
@@ -313,12 +315,37 @@ class Context {
 	 * Gets the current AMP mode.
 	 *
 	 * @since 1.0.0
+	 * @since 1.108.0 Extracted AMP plugin related logic to `get_amp_mode_from_amp_plugin` function.
+	 *
+	 * @return bool|string 'primary' if in standard mode,
+	 *                     'secondary' if in transitional or reader modes, or the Web Stories plugin is active
+	 *                     false if AMP not active, or unknown mode
+	 */
+	public function get_amp_mode() {
+		$amp_mode = $this->get_amp_mode_from_amp_plugin();
+
+		if ( false === $amp_mode ) {
+			// If the Web Stories plugin is enabled, consider the site to be running
+			// in Secondary AMP mode.
+			if ( defined( 'WEBSTORIES_VERSION' ) ) {
+				return self::AMP_MODE_SECONDARY;
+			}
+		}
+
+		return $amp_mode;
+	}
+
+	/**
+	 * Gets the current AMP mode from the AMP plugin.
+	 *
+	 * @since 1.108.0
 	 *
 	 * @return bool|string 'primary' if in standard mode,
 	 *                     'secondary' if in transitional or reader modes
 	 *                     false if AMP not active, or unknown mode
 	 */
-	public function get_amp_mode() {
+	private function get_amp_mode_from_amp_plugin() {
+
 		if ( ! class_exists( 'AMP_Theme_Support' ) ) {
 			return false;
 		}

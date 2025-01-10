@@ -19,12 +19,14 @@
 /**
  * Internal dependencies
  */
-import { createTestRegistry, unsubscribeFromAll, muteFetch } from '../../../../../tests/js/utils';
-import { STORE_NAME } from './constants';
+import { createTestRegistry, muteFetch } from '../../../../../tests/js/utils';
+import { CORE_USER } from './constants';
 
 describe( 'core/user disconnect', () => {
 	let registry;
-	const coreUserDataDisconnectEndpointRegExp = /^\/google-site-kit\/v1\/core\/user\/data\/disconnect/;
+	const coreUserDataDisconnectEndpointRegExp = new RegExp(
+		'^/google-site-kit/v1/core/user/data/disconnect'
+	);
 
 	beforeEach( () => {
 		// Create a mock to avoid triggering a network request error.
@@ -33,14 +35,10 @@ describe( 'core/user disconnect', () => {
 		registry = createTestRegistry();
 	} );
 
-	afterEach( () => {
-		unsubscribeFromAll( registry );
-	} );
-
 	describe( 'disconnect', () => {
 		it( 'does not require any params', () => {
 			expect( () => {
-				registry.dispatch( STORE_NAME ).disconnect();
+				registry.dispatch( CORE_USER ).disconnect();
 			} ).not.toThrow();
 		} );
 	} );
@@ -48,7 +46,7 @@ describe( 'core/user disconnect', () => {
 	describe( 'receiveDisconnect', () => {
 		it( 'requires the response param', () => {
 			expect( () => {
-				registry.dispatch( STORE_NAME ).receiveDisconnect();
+				registry.dispatch( CORE_USER ).receiveDisconnect();
 			} ).toThrow( 'response is required.' );
 		} );
 	} );

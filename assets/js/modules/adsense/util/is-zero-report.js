@@ -21,28 +21,27 @@
  *
  * @since 1.21.0
  *
- * @param {Object} report Report data.
+ * @param {Object} report             Report data.
+ * @param {number} selectedStatsIndex The index of the selected stats tab.
  * @return {boolean|undefined} TRUE if the report has no data, otherwise FALSE. `undefined` if the `report` passed is undefined.
  */
-export function isZeroReport( report ) {
+export function isZeroReport( report, selectedStatsIndex ) {
 	if ( report === undefined ) {
 		return undefined;
 	}
 
 	const { rows, totals } = report || {};
-	if ( ! rows || ! totals ) {
+
+	if ( ! rows?.length ) {
 		return true;
 	}
 
-	if ( rows && ( ! Array.isArray( rows ) || ! rows.length ) ) {
+	if ( ! totals?.cells?.length ) {
 		return true;
 	}
 
-	if ( totals && ( ! Array.isArray( totals ) || ! totals.length ) ) {
-		return true;
-	}
-
-	if ( ! totals.some( ( total ) => total > 0 ) ) {
+	// Take into account the value of the selected tab.
+	if ( +totals.cells[ selectedStatsIndex ]?.value === 0 ) {
 		return true;
 	}
 

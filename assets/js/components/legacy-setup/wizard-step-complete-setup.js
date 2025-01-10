@@ -30,13 +30,15 @@ import { Component } from '@wordpress/element';
 /**
  * Internal dependencies
  */
+import { Button } from 'googlesitekit-components';
+import { Cell, Grid, Row } from '../../material-components';
 import { trackEvent } from '../../util';
-import Button from '../Button';
 
 class WizardStepCompleteSetup extends Component {
 	constructor( props ) {
 		super( props );
-		const { hasSearchConsoleProperty } = global._googlesitekitLegacyData.setup;
+		const { hasSearchConsoleProperty } =
+			global._googlesitekitLegacyData.setup;
 
 		// Search console property is set for all but the first user.
 		if ( hasSearchConsoleProperty ) {
@@ -49,27 +51,37 @@ class WizardStepCompleteSetup extends Component {
 	render() {
 		return (
 			<section className="googlesitekit-wizard-step googlesitekit-wizard-step--five">
-				<div className="mdc-layout-grid">
-					<div className="mdc-layout-grid__inner">
-						<div className="
-							mdc-layout-grid__cell
-							mdc-layout-grid__cell--span-12
-						">
-							<h2 className="
+				<Grid>
+					<Row>
+						<Cell size={ 12 }>
+							<h2
+								className="
 									googlesitekit-heading-3
 									googlesitekit-wizard-step__title
-								">
+								"
+							>
 								{ __( 'Congratulations!', 'google-site-kit' ) }
 							</h2>
 							<p>
-								{ __( 'You successfully completed the Site Kit setup and connected Search Console. Check the dashboard for more services to connect.', 'google-site-kit' ) }
+								{ __(
+									'You successfully completed the Site Kit setup and connected Search Console. Check the dashboard for more services to connect.',
+									'google-site-kit'
+								) }
 							</p>
 							<div className="googlesitekit-wizard-step__action">
-								<Button id="wizard-step-five-proceed" onClick={ this.props.completeSetup }>{ __( 'Go to Dashboard', 'google-site-kit' ) }</Button>
+								<Button
+									id="wizard-step-five-proceed"
+									onClick={ this.props.completeSetup }
+								>
+									{ __(
+										'Go to Dashboard',
+										'google-site-kit'
+									) }
+								</Button>
 							</div>
-						</div>
-					</div>
-				</div>
+						</Cell>
+					</Row>
+				</Grid>
 			</section>
 		);
 	}

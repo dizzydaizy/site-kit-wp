@@ -21,19 +21,19 @@
  */
 import { extractExistingTag } from '../tag';
 import { default as adsenseTagMatchers } from '../../modules/adsense/util/tag-matchers';
-import { default as analyticsTagMatchers } from '../../modules/analytics/util/tag-matchers';
+import { default as analyticsTagMatchers } from '../../modules/analytics-4/utils/tag-matchers';
 import { tagMatchers as tagmanagerTagMatchers } from '../../modules/tagmanager/util';
 
 const valuesToTest = [
 	[
-		'<script> window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date; ga(\'create\', \'UA-XXXXX-Y\', \'auto\'); ga(\'send\', \'pageview\'); </script><script async src=\'https://www.google-analytics.com/analytics.js\'></script>',
+		"<script>__gaTracker('create','G-2B7M8YQ1K6','auto');</script>",
 		analyticsTagMatchers,
-		'UA-XXXXX-Y',
+		'G-2B7M8YQ1K6',
 	],
 	[
-		'<script> (function(i,s,o,g,r,a,m){i[\'GoogleAnalyticsObject\']=r;i[r]=i[r]||function(){ (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o), m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m) })(window,document,\'script\',\'https://www.google-analytics.com/analytics.js\',\'ga\'); ga(\'create\', \'UA-XXXXX-Y\', \'auto\'); ga(\'send\', \'pageview\'); </script>',
+		"<script>var _gaq = _gaq || [];_gaq.push(['_setAccount', 'G-2B7M8YQ1K6']);_gaq.push(['_trackPageview']);</script>",
 		analyticsTagMatchers,
-		'UA-XXXXX-Y',
+		'G-2B7M8YQ1K6',
 	],
 	[
 		'<meta charset="UTF-8"><title>Site Kit for WordPress</title><link rel="dns-prefetch" href="//fonts.googleapis.com"></link>',
@@ -51,6 +51,11 @@ const valuesToTest = [
 		'ca-pub-1234567890',
 	],
 	[
+		'<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1234567890" crossorigin="anonymous"></script>',
+		adsenseTagMatchers,
+		'ca-pub-1234567890',
+	],
+	[
 		'<script src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js" async data-ad-client="ca-pub-1234567890"></script>',
 		adsenseTagMatchers,
 		'ca-pub-1234567890',
@@ -61,9 +66,9 @@ const valuesToTest = [
 		'ca-pub-123456789',
 	],
 	[
-		'<script>(window,document,\'script\',\'//www.google-analytics.com/analytics.js\',\'ga\');ga(\'create\', \'UA-12345-1\', \'auto\');ga(\'send\', \'pageview\');</script>',
+		"<script async src='https://googletagmanager.com/gtag/js?id=G-2B7M8YQ1K6'></script>",
 		analyticsTagMatchers,
-		'UA-12345-1',
+		'G-2B7M8YQ1K6',
 	],
 	[
 		'<script async src="https://www.googletagmanager.com/gtm.js?id=GTM-XXXXXXX"></script>',
@@ -82,11 +87,11 @@ const valuesToTest = [
 	],
 	[
 		[
-			'<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({\'gtm.start\':',
-			'new Date().getTime(),event:\'gtm.js\'});var f=d.getElementsByTagName(s)[0],',
-			'j=d.createElement(s),dl=l!=\'dataLayer\'?\'&l=\'+l:\'\';j.async=true;j.src=',
-			'\'https://www.googletagmanager.com/gtm.js?id=\'+i+dl;f.parentNode.insertBefore(j,f);',
-			'})(window,document,\'script\',\'dataLayer\',\'GTM-XXXXXXX\');</script>',
+			"<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':",
+			"new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],",
+			"j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=",
+			"'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);",
+			"})(window,document,'script','dataLayer','GTM-XXXXXXX');</script>",
 		].join( '\n' ),
 		tagmanagerTagMatchers,
 		'GTM-XXXXXXX',
@@ -94,11 +99,11 @@ const valuesToTest = [
 	[
 		[
 			'<script data-cfasync="false">//<![CDATA[',
-			'(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({\'gtm.start\':',
-			'new Date().getTime(),event:\'gtm.js\'});var f=d.getElementsByTagName(s)[0],',
-			'j=d.createElement(s),dl=l!=\'dataLayer\'?\'&l=\'+l:\'\';j.async=true;j.src=',
-			'\'//www.googletagmanager.com/gtm.\'+\'js?id=\'+i+dl;f.parentNode.insertBefore(j,f);',
-			'})(window,document,\'script\',\'dataLayer\',\'GTM-XXXXXXX\');//]]>',
+			"(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':",
+			"new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],",
+			"j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=",
+			"'//www.googletagmanager.com/gtm.'+'js?id='+i+dl;f.parentNode.insertBefore(j,f);",
+			"})(window,document,'script','dataLayer','GTM-XXXXXXX');//]]>",
 			'</script>',
 		].join( '\n' ),
 		tagmanagerTagMatchers,
@@ -107,7 +112,12 @@ const valuesToTest = [
 ];
 
 describe( 'extractTag', () => {
-	it.each( valuesToTest )( 'for HTML %s and module %s should find tag %s', ( html, tagMatchers, expected ) => {
-		expect( extractExistingTag( html, tagMatchers ) ).toStrictEqual( expected );
-	} );
+	it.each( valuesToTest )(
+		'for HTML %s and module %s should find tag %s',
+		( html, tagMatchers, expected ) => {
+			expect( extractExistingTag( html, tagMatchers ) ).toStrictEqual(
+				expected
+			);
+		}
+	);
 } );

@@ -24,14 +24,21 @@ import { muteFetch } from '../../../tests/js/utils';
 import { useChecks } from './useChecks';
 
 describe( 'useChecks', () => {
+	beforeEach( () => {
+		jest.useFakeTimers();
+	} );
+
 	it( 'should return { complete:true, error: undefined } successful check runs.', async () => {
-		const checks = [ async () => Promise.resolve() ];
+		const checks = [ () => Promise.resolve() ];
 		let result;
 		await act( async () => {
 			( { result } = await renderHook( () => useChecks( checks ) ) );
 		} );
 
-		expect( result.current ).toStrictEqual( { complete: true, error: undefined } );
+		expect( result.current ).toStrictEqual( {
+			complete: true,
+			error: undefined,
+		} );
 	} );
 
 	it( 'should return { complete:true, error: undefined } with no checks to run.', async () => {
@@ -41,28 +48,41 @@ describe( 'useChecks', () => {
 			( { result } = await renderHook( () => useChecks( checks ) ) );
 		} );
 
-		expect( result.current ).toStrictEqual( { complete: true, error: undefined } );
+		expect( result.current ).toStrictEqual( {
+			complete: true,
+			error: undefined,
+		} );
 	} );
 
 	it( 'returns the first error thrown by a check', async () => {
-		muteFetch( /^\/google-site-kit\/v1\/core\/site\/data\/connection/ );
+		muteFetch(
+			new RegExp( '^/google-site-kit/v1/core/site/data/connection' )
+		);
 		const checks = [
-			async () => true,
-			async () => {
+			() => true,
+			() => {
 				setTimeout( () => {
 					throw 'error1';
 				}, 1 );
 			},
-			async () => {
+			() => {
 				throw 'error2';
 			},
 		];
-		const { result, waitForValueToChange } = renderHook( () => useChecks( checks ) );
+		const { result, waitForValueToChange } = renderHook( () =>
+			useChecks( checks )
+		);
 
-		expect( result.current ).toStrictEqual( { complete: false, error: undefined } );
+		expect( result.current ).toStrictEqual( {
+			complete: false,
+			error: undefined,
+		} );
 
 		await waitForValueToChange( () => result.current.complete );
 
-		expect( result.current ).toStrictEqual( { complete: true, error: 'error2' } );
+		expect( result.current ).toStrictEqual( {
+			complete: true,
+			error: 'error2',
+		} );
 	} );
 } );

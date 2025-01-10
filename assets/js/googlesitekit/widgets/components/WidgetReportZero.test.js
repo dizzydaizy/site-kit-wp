@@ -19,9 +19,13 @@
 /**
  * Internal dependencies
  */
-import { render, createTestRegistry, provideModules } from '../../../../../tests/js/test-utils';
+import {
+	render,
+	createTestRegistry,
+	provideModules,
+} from '../../../../../tests/js/test-utils';
 import WidgetReportZero from './WidgetReportZero';
-import { STORE_NAME } from '../datastore/constants';
+import { CORE_WIDGETS } from '../datastore/constants';
 import ReportZero from '../../../components/ReportZero';
 
 describe( 'WidgetReportZero', () => {
@@ -34,42 +38,71 @@ describe( 'WidgetReportZero', () => {
 
 	it( 'sets widget state when rendered and unsets when unmounted', () => {
 		const widgetSlug = 'testWidget';
-		const moduleSlug = 'analytics';
+		const moduleSlug = 'analytics-4';
 
 		// Initial state should be null.
-		expect( registry.select( STORE_NAME ).getWidgetState( widgetSlug ) ).toBe( null );
+		expect(
+			registry.select( CORE_WIDGETS ).getWidgetState( widgetSlug )
+		).toBe( null );
 
 		// Special state should be set upon render.
-		const widget = render( <WidgetReportZero widgetSlug={ widgetSlug } moduleSlug={ moduleSlug } />, { registry } );
-		expect( registry.select( STORE_NAME ).getWidgetState( widgetSlug ) ).toMatchObject( {
+		const widget = render(
+			<WidgetReportZero
+				widgetSlug={ widgetSlug }
+				moduleSlug={ moduleSlug }
+			/>,
+			{ registry }
+		);
+		expect(
+			registry.select( CORE_WIDGETS ).getWidgetState( widgetSlug )
+		).toMatchObject( {
 			Component: ReportZero,
 			metadata: { moduleSlug },
 		} );
 
 		// Special state should be unset again upon unmount.
 		widget.unmount();
-		expect( registry.select( STORE_NAME ).getWidgetState( widgetSlug ) ).toBe( null );
+		expect(
+			registry.select( CORE_WIDGETS ).getWidgetState( widgetSlug )
+		).toBe( null );
 	} );
 
 	it( 'only considers moduleSlug prop for widget state', () => {
 		const widgetSlug = 'testWidget';
-		const moduleSlug = 'analytics';
+		const moduleSlug = 'analytics-4';
 
 		// Pass extraProp (which should not be included in metadata).
-		render( <WidgetReportZero widgetSlug={ widgetSlug } moduleSlug={ moduleSlug } extraProp="propValue" />, { registry } );
+		render(
+			<WidgetReportZero
+				widgetSlug={ widgetSlug }
+				moduleSlug={ moduleSlug }
+				extraProp="propValue"
+			/>,
+			{ registry }
+		);
 
-		expect( registry.select( STORE_NAME ).getWidgetState( widgetSlug ) ).toMatchObject( {
+		expect(
+			registry.select( CORE_WIDGETS ).getWidgetState( widgetSlug )
+		).toMatchObject( {
 			Component: ReportZero,
 			metadata: { moduleSlug },
 		} );
 	} );
 
 	it( 'renders the same output as ReportZero with the same props (except widgetSlug)', () => {
-		const props = { moduleSlug: 'analytics', description: 'There is no data!' };
+		const props = {
+			moduleSlug: 'analytics-4',
+			description: 'There is no data!',
+		};
 
 		// WidgetReportZero wraps ReportZero, so the output must match.
-		const widgetContainer = render( <WidgetReportZero widgetSlug="testWidget" { ...props } />, { registry } ).container;
-		const container = render( <ReportZero { ...props } />, { registry } ).container;
+		const widgetContainer = render(
+			<WidgetReportZero widgetSlug="testWidget" { ...props } />,
+			{ registry }
+		).container;
+		const container = render( <ReportZero { ...props } />, {
+			registry,
+		} ).container;
 
 		expect( widgetContainer.innerHTML ).toEqual( container.innerHTML );
 	} );

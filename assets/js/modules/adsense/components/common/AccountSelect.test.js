@@ -20,49 +20,65 @@
  * Internal dependencies
  */
 import AccountSelect from './AccountSelect';
-import { fireEvent, render, freezeFetch } from '../../../../../../tests/js/test-utils';
-import { STORE_NAME } from '../../datastore/constants';
+import {
+	fireEvent,
+	render,
+	freezeFetch,
+} from '../../../../../../tests/js/test-utils';
+import { MODULES_ADSENSE } from '../../datastore/constants';
 import * as fixtures from '../../datastore/__fixtures__';
 
 const setupRegistry = ( registry ) => {
-	registry.dispatch( STORE_NAME ).setSettings( {} );
-	registry.dispatch( STORE_NAME ).receiveGetAccounts( fixtures.accountsMultiple );
-	registry.dispatch( STORE_NAME ).finishResolution( 'getAccounts', [] );
+	registry.dispatch( MODULES_ADSENSE ).setSettings( {} );
+	registry
+		.dispatch( MODULES_ADSENSE )
+		.receiveGetAccounts( fixtures.accountsMultiple );
+	registry.dispatch( MODULES_ADSENSE ).finishResolution( 'getAccounts', [] );
 };
 
 const setupLoadingRegistry = ( registry ) => {
-	registry.dispatch( STORE_NAME ).setSettings( {} );
+	registry.dispatch( MODULES_ADSENSE ).setSettings( {} );
 };
 
 describe( 'AccountSelect', () => {
-	it( 'should render an option for each AdSense account', async () => {
+	it( 'should render an option for each AdSense account', () => {
 		const { getAllByRole } = render( <AccountSelect />, { setupRegistry } );
 
 		const listItems = getAllByRole( 'menuitem', { hidden: true } );
 		expect( listItems ).toHaveLength( fixtures.accountsMultiple.length );
 	} );
 
-	it( 'should render a loading state when accounts are undefined', async () => {
-		freezeFetch( /^\/google-site-kit\/v1\/modules\/adsense\/data\/accounts/ );
+	it( 'should render a loading state when accounts are undefined', () => {
+		freezeFetch(
+			new RegExp( '^/google-site-kit/v1/modules/adsense/data/accounts' )
+		);
 
-		const { queryAllByRole, queryByRole } = render( <AccountSelect />, { setupRegistry: setupLoadingRegistry } );
+		const { queryAllByRole, queryByRole } = render( <AccountSelect />, {
+			setupRegistry: setupLoadingRegistry,
+		} );
 
-		expect( queryAllByRole( 'menuitem', { hidden: true } ) ).toHaveLength( 0 );
+		expect( queryAllByRole( 'menuitem', { hidden: true } ) ).toHaveLength(
+			0
+		);
 		expect( queryByRole( 'progressbar' ) ).toBeInTheDocument();
 	} );
 
-	it( 'should update accountID in the store when a new item is clicked', async () => {
-		const { getByText, container, registry } = render( <AccountSelect />, { setupRegistry } );
-		const originalAccountID = registry.select( STORE_NAME ).getAccountID();
+	it( 'should update accountID in the store when a new item is clicked', () => {
+		const { getByText, container, registry } = render( <AccountSelect />, {
+			setupRegistry,
+		} );
+		const originalAccountID = registry
+			.select( MODULES_ADSENSE )
+			.getAccountID();
 		const selectedAccount = fixtures.accountsMultiple[ 0 ];
 
 		// Click the label to expose the elements in the menu.
 		fireEvent.click( container.querySelector( '.mdc-floating-label' ) );
 		// Click this element to select it and fire the onChange event.
-		fireEvent.click( getByText( selectedAccount.name ) );
+		fireEvent.click( getByText( selectedAccount.displayName ) );
 
-		const newAccountID = registry.select( STORE_NAME ).getAccountID();
+		const newAccountID = registry.select( MODULES_ADSENSE ).getAccountID();
 		expect( originalAccountID ).not.toEqual( newAccountID );
-		expect( newAccountID ).toEqual( selectedAccount.id );
+		expect( newAccountID ).toEqual( selectedAccount._id );
 	} );
 } );

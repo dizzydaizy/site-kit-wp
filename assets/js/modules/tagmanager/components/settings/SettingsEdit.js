@@ -19,43 +19,56 @@
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import ProgressBar from '../../../../components/ProgressBar';
-import { STORE_NAME, ACCOUNT_CREATE } from '../../datastore/constants';
-import { useExistingTagEffect } from '../../hooks';
-import useGAPropertyIDEffect from '../../hooks/useGAPropertyIDEffect';
-import {
-	AccountCreate,
-	ExistingTagError,
-} from '../common';
+import { useSelect } from 'googlesitekit-data';
+import { ProgressBar } from 'googlesitekit-components';
+import { CORE_MODULES } from '../../../../googlesitekit/modules/datastore/constants';
+import { MODULES_TAGMANAGER, ACCOUNT_CREATE } from '../../datastore/constants';
+import useExistingTagEffect from '../../hooks/useExistingTagEffect';
+import { AccountCreate } from '../common';
 import SettingsForm from './SettingsForm';
-const { useSelect } = Data;
 
 export default function SettingsEdit() {
-	const accounts = useSelect( ( select ) => select( STORE_NAME ).getAccounts() ) || [];
-	const accountID = useSelect( ( select ) => select( STORE_NAME ).getAccountID() );
-	const hasExistingTag = useSelect( ( select ) => select( STORE_NAME ).hasExistingTag() );
-	const hasExistingTagPermission = useSelect( ( select ) => select( STORE_NAME ).hasExistingTagPermission() );
-	const isDoingSubmitChanges = useSelect( ( select ) => select( STORE_NAME ).isDoingSubmitChanges() );
-	const hasResolvedAccounts = useSelect( ( select ) => select( STORE_NAME ).hasFinishedResolution( 'getAccounts' ) );
+	const accounts =
+		useSelect( ( select ) => select( MODULES_TAGMANAGER ).getAccounts() ) ||
+		[];
+	const accountID = useSelect( ( select ) =>
+		select( MODULES_TAGMANAGER ).getAccountID()
+	);
+	const hasExistingTag = useSelect( ( select ) =>
+		select( MODULES_TAGMANAGER ).hasExistingTag()
+	);
+	const isDoingSubmitChanges = useSelect( ( select ) =>
+		select( MODULES_TAGMANAGER ).isDoingSubmitChanges()
+	);
+	const hasResolvedAccounts = useSelect( ( select ) =>
+		select( MODULES_TAGMANAGER ).hasFinishedResolution( 'getAccounts' )
+	);
+
+	const hasTagManagerAccess = useSelect( ( select ) =>
+		select( CORE_MODULES ).hasModuleOwnershipOrAccess( 'tagmanager' )
+	);
+
 	const isCreateAccount = ACCOUNT_CREATE === accountID;
 
-	// Set the accountID and containerID if there is an existing tag.
+	// Set useSnippet to `false` if there is an existing tag and it is the same as the selected container ID.
 	useExistingTagEffect();
-	// Synchronize the gaPropertyID setting with the singular GA property ID in selected containers.
-	useGAPropertyIDEffect();
 
 	let viewComponent;
 	// Here we also check for `hasResolvedAccounts` to prevent showing a different case below
 	// when the component initially loads and has yet to start fetching accounts.
-	if ( isDoingSubmitChanges || ! hasResolvedAccounts ) {
+	if (
+		isDoingSubmitChanges ||
+		! hasResolvedAccounts ||
+		hasTagManagerAccess === undefined ||
+		hasExistingTag === undefined
+	) {
 		viewComponent = <ProgressBar />;
-	} else if ( hasExistingTag && hasExistingTagPermission === false ) {
-		viewComponent = <ExistingTagError />;
 	} else if ( isCreateAccount || ! accounts?.length ) {
 		viewComponent = <AccountCreate />;
 	} else {
-		viewComponent = <SettingsForm />;
+		viewComponent = (
+			<SettingsForm hasModuleAccess={ hasTagManagerAccess } />
+		);
 	}
 
 	return (
