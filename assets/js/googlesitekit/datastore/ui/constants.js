@@ -16,5 +16,6 @@
  * limitations under the License.
  */
 
-export const STORE_NAME = 'core/ui';
-export { STORE_NAME as CORE_UI };
+export const CORE_UI = 'core/ui';
+
+export const ACTIVE_CONTEXT_ID = 'activeContextID';

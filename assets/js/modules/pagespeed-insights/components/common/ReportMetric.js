@@ -25,22 +25,32 @@ import classnames from 'classnames';
 /**
  * WordPress dependencies
  */
-import { _x } from '@wordpress/i18n';
+import { __, _x } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
-import { CATEGORY_FAST, CATEGORY_AVERAGE, CATEGORY_SLOW } from '../../util/constants';
+import {
+	CATEGORY_FAST,
+	CATEGORY_AVERAGE,
+	CATEGORY_SLOW,
+} from '../../util/constants';
+import Badge from '../../../../components/Badge';
+import InfoTooltip from '../../../../components/InfoTooltip';
 
 export default function ReportMetric( {
 	title,
 	description,
 	displayValue,
 	category,
+	experimental,
 	isLast,
+	isHidden,
+	isUnavailable,
+	hintText,
 } ) {
 	// Normalize the category case.
-	category = category.toLowerCase();
+	category = category?.toLowerCase();
 
 	return (
 		<tr
@@ -49,27 +59,86 @@ export default function ReportMetric( {
 				'googlesitekit-pagespeed-report-metric',
 				{
 					'googlesitekit-pagespeed-report__row--last': isLast,
+					'googlesitekit-pagespeed-report__row--hidden': isHidden,
+					'googlesitekit-pagespeed-report__row--unavailable':
+						isUnavailable,
 				}
 			) }
 		>
 			<td>
 				<div className="googlesitekit-pagespeed-report-metric__title">
 					{ title }
+					{ !! experimental && (
+						<Badge
+							label={ __( 'Experimental', 'google-site-kit' ) }
+							className="googlesitekit-pagespeed-report-metric__badge"
+						/>
+					) }
+					{ isUnavailable && (
+						<InfoTooltip
+							title={ __(
+								'Field data is still being gathered for this metric and will become available once your site gets sufficient traffic',
+								'google-site-kit'
+							) }
+						/>
+					) }
 				</div>
 				<div className="googlesitekit-pagespeed-report-metric__description">
 					{ description }
 				</div>
+				{ hintText && (
+					<div className="googlesitekit-pagespeed-report-metric__hint-text">
+						{ hintText }
+					</div>
+				) }
 			</td>
 
-			<td className={ `googlesitekit-pagespeed-report-metric-value googlesitekit-pagespeed-report-metric--${ category }` }>
+			<td
+				className={ classnames(
+					'googlesitekit-pagespeed-report-metric-value',
+					{
+						[ `googlesitekit-pagespeed-report-metric--${ category }` ]:
+							!! category,
+					}
+				) }
+			>
 				<div className="googlesitekit-pagespeed-report-metric-value-container">
 					<div className="googlesitekit-pagespeed-report-metric-value__display-value">
-						{ displayValue }
+						{ isUnavailable ? '—' : displayValue }
 					</div>
 					<div className="googlesitekit-pagespeed-report-metric-value__rating">
-						{ category === CATEGORY_FAST && <span>{ _x( 'Good', 'Performance rating', 'google-site-kit' ) }</span> }
-						{ category === CATEGORY_AVERAGE && <span>{ _x( 'Needs improvement', 'Performance rating', 'google-site-kit' ) }</span> }
-						{ category === CATEGORY_SLOW && <span>{ _x( 'Poor', 'Performance rating', 'google-site-kit' ) }</span> }
+						{ isUnavailable && (
+							<span>
+								{ __( 'gathering data', 'google-site-kit' ) }
+							</span>
+						) }
+						{ ! isUnavailable && category === CATEGORY_FAST && (
+							<span>
+								{ _x(
+									'Good',
+									'Performance rating',
+									'google-site-kit'
+								) }
+							</span>
+						) }
+						{ ! isUnavailable && category === CATEGORY_AVERAGE && (
+							<span>
+								{ _x(
+									'Needs improvement',
+									'Performance rating',
+									'google-site-kit'
+								) }
+							</span>
+						) }
+						{ ! isUnavailable && category === CATEGORY_SLOW && (
+							<span>
+								{ _x(
+									'Poor',
+									'Performance rating',
+									'google-site-kit'
+								) }
+							</span>
+						) }
 					</div>
 				</div>
 			</td>
@@ -81,6 +150,9 @@ ReportMetric.propTypes = {
 	title: PropTypes.string.isRequired,
 	description: PropTypes.string.isRequired,
 	displayValue: PropTypes.string.isRequired,
-	category: PropTypes.string.isRequired,
+	category: PropTypes.string,
+	experimental: PropTypes.bool,
 	isLast: PropTypes.bool,
+	isHidden: PropTypes.bool,
+	hintText: PropTypes.node,
 };

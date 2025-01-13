@@ -17,31 +17,44 @@
  */
 
 /**
+ * External dependencies
+ */
+import PropTypes from 'prop-types';
+
+/**
  * WordPress dependencies
  */
-import { useEffect } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import { DATE_RANGE_OFFSET, MODULES_SEARCH_CONSOLE } from '../../modules/search-console/datastore/constants';
+import { useSelect, useInViewSelect } from 'googlesitekit-data';
+import {
+	DATE_RANGE_OFFSET,
+	MODULES_SEARCH_CONSOLE,
+} from '../../modules/search-console/datastore/constants';
 import { CORE_USER } from '../../googlesitekit/datastore/user/constants';
-import { isZeroReport } from '../../modules/search-console/util';
 import DataBlock from '../DataBlock';
 import PreviewBlock from '../PreviewBlock';
-import { calculateChange, trackEvent } from '../../util';
+import { NOTICE_STYLE } from '../GatheringDataNotice';
+import { calculateChange } from '../../util';
 import sumObjectListValue from '../../util/sum-object-list-value';
 import { partitionReport } from '../../util/partition-report';
-const { useSelect } = Data;
 
-const WPDashboardImpressions = ( { WidgetReportZero, WidgetReportError } ) => {
-	const { compareStartDate, endDate } = useSelect( ( select ) => select( CORE_USER ).getDateRangeDates( {
-		compare: true,
-		offsetDays: DATE_RANGE_OFFSET,
-	} ) );
-	const dateRangeLength = useSelect( ( select ) => select( CORE_USER ).getDateRangeNumberOfDays() );
+function WPDashboardImpressions( { WPDashboardReportError } ) {
+	const isGatheringData = useInViewSelect( ( select ) =>
+		select( MODULES_SEARCH_CONSOLE ).isGatheringData()
+	);
+	const { compareStartDate, endDate } = useSelect( ( select ) =>
+		select( CORE_USER ).getDateRangeDates( {
+			compare: true,
+			offsetDays: DATE_RANGE_OFFSET,
+		} )
+	);
+	const dateRangeLength = useSelect( ( select ) =>
+		select( CORE_USER ).getDateRangeNumberOfDays()
+	);
 
 	const reportArgs = {
 		startDate: compareStartDate,
@@ -49,32 +62,53 @@ const WPDashboardImpressions = ( { WidgetReportZero, WidgetReportError } ) => {
 		dimensions: 'date',
 	};
 
-	const data = useSelect( ( select ) => select( MODULES_SEARCH_CONSOLE ).getReport( reportArgs ) );
-	const error = useSelect( ( select ) => select( MODULES_SEARCH_CONSOLE ).getErrorForSelector( 'getReport', [ reportArgs ] ) );
-	const loading = useSelect( ( select ) => ! select( MODULES_SEARCH_CONSOLE ).hasFinishedResolution( 'getReport', [ reportArgs ] ) );
+	const data = useInViewSelect(
+		( select ) => select( MODULES_SEARCH_CONSOLE ).getReport( reportArgs ),
+		[ reportArgs ]
+	);
+	const error = useSelect( ( select ) =>
+		select( MODULES_SEARCH_CONSOLE ).getErrorForSelector( 'getReport', [
+			reportArgs,
+		] )
+	);
+	const loading = useSelect(
+		( select ) =>
+			! select( MODULES_SEARCH_CONSOLE ).hasFinishedResolution(
+				'getReport',
+				[ reportArgs ]
+			)
+	);
 
-	useEffect( () => {
-		if ( error ) {
-			trackEvent( 'plugin_setup', 'search_console_error', error.message );
-		}
-	}, [ error ] );
-
-	if ( loading ) {
+	if ( loading || isGatheringData === undefined ) {
 		return <PreviewBlock width="48%" height="92px" />;
 	}
 
 	if ( error ) {
-		return <WidgetReportError moduleSlug="search-console" error={ error } />;
+		return (
+			<WPDashboardReportError
+				moduleSlug="search-console"
+				error={ error }
+			/>
+		);
 	}
 
-	if ( isZeroReport( data ) ) {
-		return <WidgetReportZero moduleSlug="search-console" />;
-	}
-
-	const { compareRange, currentRange } = partitionReport( data, { dateRangeLength } );
+	const { compareRange, currentRange } = partitionReport( data, {
+		dateRangeLength,
+	} );
 	const totalImpressions = sumObjectListValue( currentRange, 'impressions' );
-	const totalOlderImpressions = sumObjectListValue( compareRange, 'impressions' );
-	const totalImpressionsChange = calculateChange( totalOlderImpressions, totalImpressions );
+	const totalOlderImpressions = sumObjectListValue(
+		compareRange,
+		'impressions'
+	);
+	const totalImpressionsChange = calculateChange(
+		totalOlderImpressions,
+		totalImpressions
+	);
+
+	const gatheringDataProps = {
+		gatheringData: isGatheringData,
+		gatheringDataNoticeStyle: NOTICE_STYLE.SMALL,
+	};
 
 	return (
 		<DataBlock
@@ -83,8 +117,13 @@ const WPDashboardImpressions = ( { WidgetReportZero, WidgetReportError } ) => {
 			datapoint={ totalImpressions }
 			change={ totalImpressionsChange }
 			changeDataUnit="%"
+			{ ...gatheringDataProps }
 		/>
 	);
+}
+
+WPDashboardImpressions.propTypes = {
+	WPDashboardReportError: PropTypes.elementType.isRequired,
 };
 
 export default WPDashboardImpressions;

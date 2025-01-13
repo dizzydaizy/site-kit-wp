@@ -18,6 +18,7 @@
 
 import API from 'googlesitekit-api';
 import { CORE_SITE } from '../../../googlesitekit/datastore/site/constants';
+import { isIPAddressInRange } from '../../../util/ip-cidr';
 import {
 	AMP_PROJECT_TEST_URL,
 	ERROR_AMP_CDN_RESTRICTED,
@@ -26,14 +27,36 @@ import {
 	ERROR_GOOGLE_API_CONNECTION_FAIL,
 	ERROR_INVALID_HOSTNAME,
 	ERROR_TOKEN_MISMATCH,
-	ERROR_WP_PRE_V5,
+	ERROR_SK_SERVICE_CONNECTION_FAIL,
 } from './constants';
 
-// Check for a known non-public/reserved domain.
-export const checkHostname = async () => {
-	const { hostname } = global.location;
+const isIP =
+	/^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}$/;
 
-	if ( [ 'localhost', '127.0.0.1' ].includes( hostname ) || hostname.match( /\.(example|invalid|localhost|test)$/ ) ) {
+const invalidTLDs = /\.(example|invalid|localhost|test)$/;
+
+const invalidIPRanges = [
+	{ subnet: '10.0.0.0', mask: 8 },
+	{ subnet: '127.0.0.0', mask: 8 },
+	{ subnet: '172.16.0.0', mask: 12 },
+	{ subnet: '192.168.0.0', mask: 16 },
+];
+// Check for a known non-public/reserved domain.
+// eslint-disable-next-line require-await
+export const checkHostname = async () => {
+	const { hostname, port } = global.location;
+
+	if ( port ) {
+		throw ERROR_INVALID_HOSTNAME;
+	}
+
+	if ( isIP.test( hostname ) ) {
+		for ( const { mask, subnet } of invalidIPRanges ) {
+			if ( isIPAddressInRange( hostname, subnet, mask ) ) {
+				throw ERROR_INVALID_HOSTNAME;
+			}
+		}
+	} else if ( ! hostname.includes( '.' ) || hostname.match( invalidTLDs ) ) {
 		throw ERROR_INVALID_HOSTNAME;
 	}
 };
@@ -46,9 +69,15 @@ export const registryCheckSetupTag = ( registry ) => async () => {
 };
 // Check that server can connect to Google's APIs via the core/site/data/health-checks endpoint.
 export const checkHealthChecks = async () => {
-	const response = await API.get( 'core', 'site', 'health-checks', undefined, {
-		useCache: false,
-	} ).catch( ( error ) => {
+	const response = await API.get(
+		'core',
+		'site',
+		'health-checks',
+		undefined,
+		{
+			useCache: false,
+		}
+	).catch( ( error ) => {
 		if ( error.code === 'fetch_error' ) {
 			throw ERROR_FETCH_FAIL;
 		}
@@ -57,6 +86,10 @@ export const checkHealthChecks = async () => {
 
 	if ( ! response?.checks?.googleAPI?.pass ) {
 		throw ERROR_GOOGLE_API_CONNECTION_FAIL;
+	}
+
+	if ( ! response?.checks?.skService?.pass ) {
+		throw ERROR_SK_SERVICE_CONNECTION_FAIL;
 	}
 };
 // Check that client can connect to AMP Project.
@@ -67,13 +100,5 @@ export const checkAMPConnectivity = async () => {
 
 	if ( ! response.ok ) {
 		throw ERROR_AMP_CDN_RESTRICTED;
-	}
-};
-// Check that the current version of WordPress is 5.0+.
-export const checkWPVersion = async () => {
-	const { wpVersion } = global._googlesitekitBaseData || {};
-	// Throw only if we can get the current version, otherwise ignore it.
-	if ( wpVersion && wpVersion.major < 5 ) {
-		throw ERROR_WP_PRE_V5;
 	}
 };

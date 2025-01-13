@@ -21,37 +21,6 @@
  */
 import { __, _x } from '@wordpress/i18n';
 
-const STEPS = {
-	authentication: {
-		title: __( 'Authenticate', 'google-site-kit' ),
-		required: true,
-		isApplicable: () => true,
-		isCompleted: ( props ) => props.isSiteKitConnected && props.isAuthenticated && ! props.needReauthenticate,
-		Component: WizardStepAuthentication,
-	},
-	verification: {
-		title: __( 'Verify URL', 'google-site-kit' ),
-		required: true,
-		isApplicable: () => true,
-		isCompleted: ( props ) => props.isSiteKitConnected && props.isAuthenticated && props.isVerified,
-		Component: WizardStepVerification,
-	},
-	seachConsoleProperty: {
-		title: __( 'Connect Search Console', 'google-site-kit' ),
-		required: true,
-		isApplicable: () => true,
-		isCompleted: ( props ) => props.isSiteKitConnected && props.isAuthenticated && props.isVerified && props.hasSearchConsoleProperty,
-		Component: WizardStepSearchConsoleProperty,
-	},
-	completeSetup: {
-		title: _x( 'Finish', 'complete module setup', 'google-site-kit' ),
-		required: false,
-		isApplicable: () => true,
-		isCompleted: ( props ) => props.isSiteKitConnected && props.isAuthenticated && props.isVerified && props.hasSearchConsoleProperty,
-		Component: WizardStepCompleteSetup,
-	},
-};
-
 /**
  * Internal dependencies
  */
@@ -59,5 +28,50 @@ import WizardStepAuthentication from './wizard-step-authentication';
 import WizardStepVerification from './wizard-step-verification';
 import WizardStepSearchConsoleProperty from './wizard-step-search-console-property';
 import WizardStepCompleteSetup from './wizard-step-complete-setup';
+
+const STEPS = {
+	authentication: {
+		title: __( 'Authenticate', 'google-site-kit' ),
+		required: true,
+		isApplicable: () => true,
+		isCompleted: ( props ) =>
+			props.isSiteKitConnected &&
+			props.isAuthenticated &&
+			! props.needReauthenticate,
+		Component: WizardStepAuthentication,
+	},
+	verification: {
+		title: __( 'Verify URL', 'google-site-kit' ),
+		required: true,
+		isApplicable: () => true,
+		isCompleted: ( props ) =>
+			props.isSiteKitConnected &&
+			props.isAuthenticated &&
+			props.isVerified,
+		Component: WizardStepVerification,
+	},
+	seachConsoleProperty: {
+		title: __( 'Connect Search Console', 'google-site-kit' ),
+		required: true,
+		isApplicable: () => true,
+		isCompleted: ( props ) =>
+			props.isSiteKitConnected &&
+			props.isAuthenticated &&
+			props.isVerified &&
+			props.hasSearchConsoleProperty,
+		Component: WizardStepSearchConsoleProperty,
+	},
+	completeSetup: {
+		title: _x( 'Finish', 'complete module setup', 'google-site-kit' ),
+		required: false,
+		isApplicable: () => true,
+		isCompleted: ( props ) =>
+			props.isSiteKitConnected &&
+			props.isAuthenticated &&
+			props.isVerified &&
+			props.hasSearchConsoleProperty,
+		Component: WizardStepCompleteSetup,
+	},
+};
 
 export default STEPS;

@@ -21,6 +21,80 @@
  */
 import { isZeroReport } from './is-zero-report';
 
+const validReport = {
+	totalMatchedRows: '1',
+	headers: [
+		{
+			name: 'TOTAL_EARNINGS',
+			type: 'METRIC_CURRENCY',
+			currencyCode: 'EUR',
+		},
+		{
+			name: 'IMPRESSIONS',
+			type: 'METRIC_TALLY',
+		},
+		{
+			name: 'PAGE_VIEWS_RPM',
+			type: 'METRIC_CURRENCY',
+			currencyCode: 'EUR',
+		},
+	],
+	rows: [
+		{
+			cells: [
+				{
+					value: '0.00',
+				},
+				{
+					value: '20075',
+				},
+				{
+					value: '2.60',
+				},
+			],
+		},
+	],
+	totals: {
+		cells: [
+			{
+				value: '0.00',
+			},
+			{
+				value: '20075',
+			},
+			{
+				value: '2.60',
+			},
+		],
+	},
+	averages: {
+		cells: [
+			{
+				value: '0.00',
+			},
+			{
+				value: '20075',
+			},
+			{
+				value: '0.00',
+			},
+		],
+	},
+	warnings: [
+		'Some of the requested metrics are not available for some of the ad clients used by this report.',
+	],
+	startDate: {
+		year: 2021,
+		month: 6,
+		day: 1,
+	},
+	endDate: {
+		year: 2021,
+		month: 6,
+		day: 20,
+	},
+};
+
 describe( 'isZeroReport', () => {
 	it.each( [
 		[ 'NULL', null ],
@@ -33,19 +107,14 @@ describe( 'isZeroReport', () => {
 		[ 'an object without rows', { totals: [ 1 ] } ],
 		[ 'an object with invalid rows', { rows: 12, totals: [ 1 ] } ],
 	] )( 'should return TRUE when %s is passed', ( _, report ) => {
-		expect( isZeroReport( report ) ).toBe( true );
+		expect( isZeroReport( report, 1 ) ).toBe( true );
 	} );
 
 	it( 'should return FALSE when a valid object is passed', () => {
-		const report = {
-			totals: [ '1' ],
-			rows: [ [] ],
-		};
-
-		expect( isZeroReport( report ) ).toBe( false );
+		expect( isZeroReport( validReport, 1 ) ).toBe( false );
 	} );
 
 	it( 'should return undefined when an undefined value is passed', () => {
-		expect( isZeroReport( undefined ) ).toBeUndefined();
+		expect( isZeroReport( undefined, 1 ) ).toBeUndefined();
 	} );
 } );

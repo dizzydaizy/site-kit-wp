@@ -21,6 +21,7 @@
  */
 import { setDefaultOptions } from 'expect-puppeteer';
 import { get } from 'lodash';
+import { ConsoleMessage } from 'puppeteer';
 
 /**
  * WordPress dependencies
@@ -74,8 +75,10 @@ const pageEvents = [];
 
 // The Jest timeout is increased because these tests are a bit slow
 jest.setTimeout( PUPPETEER_TIMEOUT || 100000 );
-// Set default timeout for individual expect-puppeteer assertions. (Default: 500)
-setDefaultOptions( { timeout: EXPECT_PUPPETEER_TIMEOUT || 500 } );
+// Set default timeout for Puppeteer waits. (Default: 30 sec)
+page.setDefaultTimeout( 5000 );
+// Set default timeout for individual expect-puppeteer assertions. (Default: 1000)
+setDefaultOptions( { timeout: EXPECT_PUPPETEER_TIMEOUT || 1000 } );
 
 // Add custom matchers specific to Site Kit.
 expect.extend( customMatchers );
@@ -153,7 +156,11 @@ function observeConsoleLogging() {
 
 		// We log this separately now in a way which includes the URL
 		// which is much more useful than this message.
-		if ( text.startsWith( 'Failed to load resource: the server responded with a status of' ) ) {
+		if (
+			text.startsWith(
+				'Failed to load resource: the server responded with a status of'
+			)
+		) {
 			return;
 		}
 
@@ -166,9 +173,15 @@ function observeConsoleLogging() {
 		if (
 			text.startsWith( 'Failed to decode downloaded font:' ) ||
 			text.startsWith( 'OTS parsing error:' ) ||
-			text.includes( 'Download the React DevTools for a better development experience' ) ||
-			text.includes( 'Can\'t perform a React state update on an unmounted component' ) ||
-			text.includes( 'https://fb.me/react-unsafe-component-lifecycles' ) ||
+			text.includes(
+				'Download the React DevTools for a better development experience'
+			) ||
+			text.includes(
+				"Can't perform a React state update on an unmounted component"
+			) ||
+			text.includes(
+				'https://fb.me/react-unsafe-component-lifecycles'
+			) ||
 			text.includes( 'https://fb.me/react-strict-mode-' )
 		) {
 			return;
@@ -179,16 +192,26 @@ function observeConsoleLogging() {
 		if (
 			text.startsWith( 'Powered by AMP' ) ||
 			text.startsWith( 'data_error unknown response key' ) ||
-			text.includes( 'No triggers were found in the config. No analytics data will be sent.' )
+			text.includes(
+				'No triggers were found in the config. No analytics data will be sent.'
+			)
 		) {
+			return;
+		}
+
+		// Ignore errors thrown by `@wordpress/api-fetch`. These are actual,
+		// legimate request failures, but they can happen during a navigation
+		// (or when actually offline).
+		//
+		// We ignore them as they are not indicative of a problem with the
+		// test and usually make E2E tests fail erroneously.
+		if ( text.includes( 'You are probably offline.' ) ) {
 			return;
 		}
 
 		// WordPress 5.3 logs when a block is saved and causes console logs
 		// that should not cause failures.
-		if (
-			text.startsWith( 'Block successfully updated for' )
-		) {
+		if ( text.startsWith( 'Block successfully updated for' ) ) {
 			return;
 		}
 
@@ -200,7 +223,32 @@ function observeConsoleLogging() {
 			return;
 		}
 
-		const logFunction = OBSERVED_CONSOLE_MESSAGE_TYPES[ type ];
+		// WordPress 6.3 moved the editor into an iframe and warns when
+		// when styles are added incorrectly.
+		// See https://github.com/WordPress/gutenberg/blob/5977e3d60b7aea6e22d4a452f7525d3f140c37b6/packages/block-editor/src/components/iframe/index.js#L170
+		// Here we ignore core those from core themes in case we add our own styles
+		// here in the future.
+		if (
+			text.match( /^twenty[a-z-]+ was added to the iframe incorrectly/ )
+		) {
+			return;
+		}
+
+		// WordPress 6.6 logs when loading the block editor which causes console error.
+		if ( text.startsWith( 'Warning: You are importing createRoot from' ) ) {
+			return;
+		}
+
+		let logFunction = OBSERVED_CONSOLE_MESSAGE_TYPES[ type ];
+
+		// At this point, any unexpected message will result in a test failure.
+
+		// Check if it's raised by the AMP plugin.
+		if ( isPluginConsoleMessage( 'amp', message ) ) {
+			// Convert console messages originating from AMP to debug statements.
+			// This avoids failing tests from console errors we don't have control of.
+			logFunction = 'debug';
+		}
 
 		// As of Puppeteer 1.6.1, `message.text()` wrongly returns an object of
 		// type JSHandle for error logging, instead of the expected string.
@@ -213,7 +261,11 @@ function observeConsoleLogging() {
 		// correctly. Instead, the logic here synchronously inspects the
 		// internal object shape of the JSHandle to find the error text. If it
 		// cannot be found, the default text value is used instead.
-		text = get( message.args(), [ 0, '_remoteObject', 'description' ], text );
+		text = get(
+			message.args(),
+			[ 0, '_remoteObject', 'description' ],
+			text
+		);
 
 		// Disable reason: We intentionally bubble up the console message
 		// which, unless the test explicitly anticipates the logging via
@@ -223,6 +275,25 @@ function observeConsoleLogging() {
 		// eslint-disable-next-line no-console
 		console[ logFunction ]( text );
 	} );
+}
+
+/**
+ * Checks if the given console message is coming from a specific plugin.
+ *
+ * @since 1.98.0
+ *
+ * @param {string}         pluginSlug Plugin slug.
+ * @param {ConsoleMessage} message    Console message.
+ * @return {boolean} Whether or not a match was found.
+ */
+function isPluginConsoleMessage( pluginSlug, message ) {
+	return message
+		.stackTrace()
+		.some( ( { url } ) =>
+			url.match(
+				`${ process.env.WP_BASE_URL }/wp-content/plugins/${ pluginSlug }/`
+			)
+		);
 }
 
 /**

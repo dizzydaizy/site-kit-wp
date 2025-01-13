@@ -19,15 +19,18 @@
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import ProgressBar from '../../../../components/ProgressBar';
+import { useSelect } from 'googlesitekit-data';
+import { ProgressBar } from 'googlesitekit-components';
 import { CORE_USER } from '../../../../googlesitekit/datastore/user/constants';
-const { useSelect } = Data;
 
 export default function UserProfile() {
 	const userEmail = useSelect( ( select ) => select( CORE_USER ).getEmail() );
-	const userPicture = useSelect( ( select ) => select( CORE_USER ).getPicture() );
-	const hasResolvedGetUser = useSelect( ( select ) => select( CORE_USER ).hasFinishedResolution( 'getUser' ) );
+	const userPicture = useSelect( ( select ) =>
+		select( CORE_USER ).getPicture()
+	);
+	const hasResolvedGetUser = useSelect( ( select ) =>
+		select( CORE_USER ).hasFinishedResolution( 'getUser' )
+	);
 
 	if ( ! hasResolvedGetUser ) {
 		return <ProgressBar small />;

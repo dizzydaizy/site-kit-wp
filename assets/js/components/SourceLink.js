@@ -32,13 +32,17 @@ import { __, sprintf } from '@wordpress/i18n';
  * Internal dependencies
  */
 import Link from './Link';
+import useViewOnly from '../hooks/useViewOnly';
 
 function SourceLink( { name, href, className, external } ) {
+	const viewOnlyDashboard = useViewOnly();
+
+	if ( viewOnlyDashboard ) {
+		return null;
+	}
+
 	return (
-		<div className={ classnames(
-			'googlesitekit-source-link',
-			className
-		) }>
+		<div className={ classnames( 'googlesitekit-source-link', className ) }>
 			{ createInterpolateElement(
 				sprintf(
 					/* translators: %s: source link */
@@ -46,12 +50,7 @@ function SourceLink( { name, href, className, external } ) {
 					`<a>${ name }</a>`
 				),
 				{
-					a: <Link
-						key="link"
-						href={ href }
-						external={ external }
-						inherit
-					/>,
+					a: <Link key="link" href={ href } external={ external } />,
 				}
 			) }
 		</div>

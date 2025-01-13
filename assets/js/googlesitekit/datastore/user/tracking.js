@@ -20,13 +20,16 @@
  * Internal dependencies
  */
 import API from 'googlesitekit-api';
-import Data from 'googlesitekit-data';
-import { STORE_NAME } from './constants';
+import { commonActions, combineStores } from 'googlesitekit-data';
+import { CORE_USER } from './constants';
 import { createFetchStore } from '../../data/create-fetch-store';
 import { actions as errorStoreActions } from '../../data/create-error-store';
 const { receiveError, clearError } = errorStoreActions;
 
-const fetchStoreReducerCallback = ( state, tracking ) => ( { ...state, tracking } );
+const fetchStoreReducerCallback = ( state, tracking ) => ( {
+	...state,
+	tracking,
+} );
 
 const fetchGetTrackingStore = createFetchStore( {
 	baseName: 'getTracking',
@@ -38,7 +41,8 @@ const fetchGetTrackingStore = createFetchStore( {
 
 const fetchSaveTrackingStore = createFetchStore( {
 	baseName: 'setTracking',
-	controlCallback: ( enabled ) => API.set( 'core', 'user', 'tracking', { enabled: !! enabled } ),
+	controlCallback: ( enabled ) =>
+		API.set( 'core', 'user', 'tracking', { enabled: !! enabled } ),
 	reducerCallback: fetchStoreReducerCallback,
 	argsToParams: ( enabled ) => enabled,
 } );
@@ -68,7 +72,8 @@ const baseActions = {
 			payload: { isSaving: true },
 		};
 
-		const { response, error } = yield fetchSaveTrackingStore.actions.fetchSetTracking( enabled );
+		const { response, error } =
+			yield fetchSaveTrackingStore.actions.fetchSetTracking( enabled );
 		if ( error ) {
 			yield receiveError( error, 'setTrackingEnabled', [ enabled ] );
 		}
@@ -98,8 +103,8 @@ export const baseReducer = ( state, { type, payload } ) => {
 
 const baseResolvers = {
 	*isTrackingEnabled() {
-		const { select } = yield Data.commonActions.getRegistry();
-		if ( select( STORE_NAME ).isTrackingEnabled() === undefined ) {
+		const { select } = yield commonActions.getRegistry();
+		if ( select( CORE_USER ).isTrackingEnabled() === undefined ) {
 			yield fetchGetTrackingStore.actions.fetchGetTracking();
 		}
 	},
@@ -132,17 +137,13 @@ const baseSelectors = {
 	},
 };
 
-const store = Data.combineStores(
-	fetchGetTrackingStore,
-	fetchSaveTrackingStore,
-	{
-		initialState: baseInitialState,
-		actions: baseActions,
-		reducer: baseReducer,
-		resolvers: baseResolvers,
-		selectors: baseSelectors,
-	}
-);
+const store = combineStores( fetchGetTrackingStore, fetchSaveTrackingStore, {
+	initialState: baseInitialState,
+	actions: baseActions,
+	reducer: baseReducer,
+	resolvers: baseResolvers,
+	selectors: baseSelectors,
+} );
 
 export const initialState = store.initialState;
 export const actions = store.actions;

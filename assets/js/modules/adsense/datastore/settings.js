@@ -24,32 +24,37 @@ import invariant from 'invariant';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import { INVARIANT_DOING_SUBMIT_CHANGES, INVARIANT_SETTINGS_NOT_CHANGED } from '../../../googlesitekit/data/create-settings-store';
 import {
-	isValidAccountID,
-	isValidClientID,
-} from '../util';
-import { STORE_NAME } from './constants';
+	commonActions,
+	createRegistryControl,
+	combineStores,
+} from 'googlesitekit-data';
+import {
+	INVARIANT_DOING_SUBMIT_CHANGES,
+	INVARIANT_SETTINGS_NOT_CHANGED,
+} from '../../../googlesitekit/data/create-settings-store';
+import { isValidAccountID, isValidClientID } from '../util';
+import { MODULES_ADSENSE } from './constants';
 import { createStrictSelect } from '../../../googlesitekit/data/utils';
 
-const { commonActions, createRegistryControl } = Data;
-
 // Invariant error messages.
-export const INVARIANT_MISSING_ACCOUNT_STATUS = 'require an account status to be present';
-export const INVARIANT_INVALID_ACCOUNT_ID = 'require account ID to be either empty (if impossible to determine) or valid';
-export const INVARIANT_INVALID_CLIENT_ID = 'require client ID to be either empty (if impossible to determine) or valid';
+export const INVARIANT_MISSING_ACCOUNT_STATUS =
+	'require an account status to be present';
+export const INVARIANT_INVALID_ACCOUNT_ID =
+	'require account ID to be either empty (if impossible to determine) or valid';
+export const INVARIANT_INVALID_CLIENT_ID =
+	'require client ID to be either empty (if impossible to determine) or valid';
 
 // Actions
 const COMPLETE_ACCOUNT_SETUP = 'COMPLETE_ACCOUNT_SETUP';
 const COMPLETE_SITE_SETUP = 'COMPLETE_SITE_SETUP';
 
-// The original account status on pageload is a specific requirement for
+// The original use-snippet on pageload is a specific requirement for
 // certain parts of the AdSense setup flow.
-const RECEIVE_ORIGINAL_ACCOUNT_STATUS = 'RECEIVE_ORIGINAL_ACCOUNT_STATUS';
+const RECEIVE_ORIGINAL_USE_SNIPPET = 'RECEIVE_ORIGINAL_USE_SNIPPET';
 
 const baseInitialState = {
-	originalAccountStatus: undefined,
+	originalUseSnippet: undefined,
 };
 
 const baseActions = {
@@ -91,84 +96,101 @@ const baseActions = {
 		return success;
 	},
 
-	receiveOriginalAccountStatus( originalAccountStatus ) {
-		invariant( originalAccountStatus, 'originalAccountStatus is required.' );
+	receiveOriginalUseSnippet( originalUseSnippet ) {
+		invariant( originalUseSnippet, 'originalUseSnippet is required.' );
 
 		return {
-			payload: { originalAccountStatus },
-			type: RECEIVE_ORIGINAL_ACCOUNT_STATUS,
+			payload: { originalUseSnippet },
+			type: RECEIVE_ORIGINAL_USE_SNIPPET,
 		};
 	},
 };
 
 const baseControls = {
 	// This is a control to allow for asynchronous logic using external action dispatchers.
-	[ COMPLETE_ACCOUNT_SETUP ]: createRegistryControl( ( registry ) => async () => {
-		await registry.dispatch( STORE_NAME ).setAccountSetupComplete( true );
-		// canSubmitChanges cannot be checked before here because the settings
-		// won't have changed yet.
-		if ( ! registry.select( STORE_NAME ).canSubmitChanges() ) {
-			// Unset flag again.
-			await registry.dispatch( STORE_NAME ).setAccountSetupComplete( false );
-			return false;
+	[ COMPLETE_ACCOUNT_SETUP ]: createRegistryControl(
+		( registry ) => async () => {
+			await registry
+				.dispatch( MODULES_ADSENSE )
+				.setAccountSetupComplete( true );
+			// canSubmitChanges cannot be checked before here because the settings
+			// won't have changed yet.
+			if ( ! registry.select( MODULES_ADSENSE ).canSubmitChanges() ) {
+				// Unset flag again.
+				await registry
+					.dispatch( MODULES_ADSENSE )
+					.setAccountSetupComplete( false );
+				return false;
+			}
+			const { error } = await registry
+				.dispatch( MODULES_ADSENSE )
+				.submitChanges();
+			if ( error ) {
+				// Unset flag again.
+				await registry
+					.dispatch( MODULES_ADSENSE )
+					.setAccountSetupComplete( false );
+				return false;
+			}
+			return true;
 		}
-		const { error } = await registry.dispatch( STORE_NAME ).submitChanges();
-		if ( error ) {
-			// Unset flag again.
-			await registry.dispatch( STORE_NAME ).setAccountSetupComplete( false );
-			return false;
-		}
-		return true;
-	} ),
+	),
 	// This is a control to allow for asynchronous logic using external action dispatchers.
-	[ COMPLETE_SITE_SETUP ]: createRegistryControl( ( registry ) => async () => {
-		await registry.dispatch( STORE_NAME ).setSiteSetupComplete( true );
-		// canSubmitChanges cannot be checked before here because the settings
-		// won't have changed yet.
-		if ( ! registry.select( STORE_NAME ).canSubmitChanges() ) {
-			// Unset flag again.
-			await registry.dispatch( STORE_NAME ).setSiteSetupComplete( false );
-			return false;
+	[ COMPLETE_SITE_SETUP ]: createRegistryControl(
+		( registry ) => async () => {
+			await registry
+				.dispatch( MODULES_ADSENSE )
+				.setSiteSetupComplete( true );
+			// canSubmitChanges cannot be checked before here because the settings
+			// won't have changed yet.
+			if ( ! registry.select( MODULES_ADSENSE ).canSubmitChanges() ) {
+				// Unset flag again.
+				await registry
+					.dispatch( MODULES_ADSENSE )
+					.setSiteSetupComplete( false );
+				return false;
+			}
+			const { error } = await registry
+				.dispatch( MODULES_ADSENSE )
+				.submitChanges();
+			if ( error ) {
+				// Unset flag again.
+				await registry
+					.dispatch( MODULES_ADSENSE )
+					.setSiteSetupComplete( false );
+				return false;
+			}
+			return true;
 		}
-		const { error } = await registry.dispatch( STORE_NAME ).submitChanges();
-		if ( error ) {
-			// Unset flag again.
-			await registry.dispatch( STORE_NAME ).setSiteSetupComplete( false );
-			return false;
-		}
-		return true;
-	} ),
+	),
 };
 
 const baseReducer = ( state, { type, payload } ) => {
 	switch ( type ) {
 		// This action is purely for testing, the value is typically handled
 		// as a side-effect from 'RECEIVE_SETTINGS' (see below).
-		case RECEIVE_ORIGINAL_ACCOUNT_STATUS: {
-			const { originalAccountStatus } = payload;
+		case RECEIVE_ORIGINAL_USE_SNIPPET: {
+			const { originalUseSnippet } = payload;
 			return {
 				...state,
-				originalAccountStatus,
+				originalUseSnippet,
 			};
 		}
 
 		// This action is mainly handled via createSettingsStore, but here we
-		// need it to have the side effect of storing the original account
-		// status.
+		// need it to have the side effect of storing the original useSnippet.
 		case 'RECEIVE_GET_SETTINGS': {
 			const { response } = payload;
-			const { accountStatus } = response;
+			const { useSnippet } = response;
 
-			// Only set original account status when it is really the first
+			// Only set original account status AND original useSnippet when it is really the first
 			// time that we load the settings on this pageload.
-			if ( undefined === state.originalAccountStatus ) {
-				return {
-					...state,
-					originalAccountStatus: accountStatus,
-				};
-			}
-
-			return state;
+			return {
+				...state,
+				...( undefined === state.originalUseSnippet && {
+					originalUseSnippet: useSnippet,
+				} ),
+			};
 		}
 
 		default: {
@@ -178,17 +200,19 @@ const baseReducer = ( state, { type, payload } ) => {
 };
 
 const baseResolvers = {
-	*getOriginalAccountStatus() {
+	*getOriginalUseSnippet() {
 		const registry = yield commonActions.getRegistry();
 
-		// Do not do anything if original account status already known.
-		const existingOriginalAccountStatus = registry.select( STORE_NAME ).getOriginalAccountStatus();
-		if ( undefined !== existingOriginalAccountStatus ) {
+		// Do not do anything if original useSnippet is already known.
+		const existingOriginalUseSnippet = registry
+			.select( MODULES_ADSENSE )
+			.getOriginalUseSnippet();
+		if ( undefined !== existingOriginalUseSnippet ) {
 			return;
 		}
 
 		// Ensure settings are being fetched if not yet in progress.
-		registry.select( STORE_NAME ).getSettings();
+		registry.select( MODULES_ADSENSE ).getSettings();
 	},
 };
 
@@ -210,17 +234,16 @@ const baseSelectors = {
 	},
 
 	/**
-	 * Gets the original account status stored before the current pageload.
+	 * Gets the original useSnippet stored before the current pageload.
 	 *
-	 * @since 1.9.0
+	 * @since 1.72.0
 	 * @private
 	 *
 	 * @param {Object} state Data store's state.
-	 * @return {(string|undefined)} Original account status (may be an empty string), or
-	 *                              undefined if not loaded yet.
+	 * @return {(boolean|undefined)} Original useSnippet, or undefined if not loaded yet.
 	 */
-	getOriginalAccountStatus( state ) {
-		return state.originalAccountStatus;
+	getOriginalUseSnippet( state ) {
+		return state.originalUseSnippet;
 	},
 };
 
@@ -232,7 +255,7 @@ export function validateCanSubmitChanges( select ) {
 		getAccountStatus,
 		haveSettingsChanged,
 		isDoingSubmitChanges,
-	} = strictSelect( STORE_NAME );
+	} = strictSelect( MODULES_ADSENSE );
 
 	// Note: these error messages are referenced in test assertions.
 	invariant( ! isDoingSubmitChanges(), INVARIANT_DOING_SUBMIT_CHANGES );
@@ -240,13 +263,19 @@ export function validateCanSubmitChanges( select ) {
 	invariant( getAccountStatus(), INVARIANT_MISSING_ACCOUNT_STATUS );
 
 	const accountID = getAccountID();
-	invariant( '' === accountID || isValidAccountID( accountID ), INVARIANT_INVALID_ACCOUNT_ID );
+	invariant(
+		'' === accountID || isValidAccountID( accountID ),
+		INVARIANT_INVALID_ACCOUNT_ID
+	);
 
 	const clientID = getClientID();
-	invariant( '' === clientID || isValidClientID( clientID ), INVARIANT_INVALID_CLIENT_ID );
+	invariant(
+		'' === clientID || isValidClientID( clientID ),
+		INVARIANT_INVALID_CLIENT_ID
+	);
 }
 
-const store = Data.combineStores( {
+const store = combineStores( {
 	initialState: baseInitialState,
 	actions: baseActions,
 	controls: baseControls,

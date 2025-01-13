@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
-export default function() {
+export default function () {
 	return <svg />;
 }
 
-export const ReactComponent = () => <svg />;
+export function ReactComponent() {
+	return <svg />;
+}

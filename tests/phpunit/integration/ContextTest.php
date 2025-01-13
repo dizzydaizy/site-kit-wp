@@ -69,9 +69,6 @@ class ContextTest extends TestCase {
 		$_GET['foo'] = true;
 
 		$this->assertTrue( $context->input()->filter( INPUT_GET, 'foo', FILTER_VALIDATE_BOOLEAN ) );
-
-		$_GET['dirty'] = '<script>dirt</script>';
-		$this->assertEquals( 'dirt', $context->input()->filter( INPUT_GET, 'dirty', FILTER_SANITIZE_STRING ) );
 	}
 
 	public function test_admin_url() {
@@ -196,7 +193,7 @@ class ContextTest extends TestCase {
 		remove_all_filters( 'googlesitekit_setup_complete' );
 		$authentication = new Authentication( $context );
 		$authentication->verification()->set( true );
-		$authentication->get_oauth_client()->set_access_token( 'test-access-token', HOUR_IN_SECONDS );
+		$authentication->get_oauth_client()->set_token( array( 'access_token' => 'test-access-token' ) );
 		$this->assertTrue( current_user_can( Permissions::VIEW_DASHBOARD ) );
 
 		// Set admin context.
@@ -346,7 +343,7 @@ class ContextTest extends TestCase {
 		// Fake plugin being network-active.
 		add_filter(
 			'pre_site_option_active_sitewide_plugins',
-			function() {
+			function () {
 				$plugin_basename = GOOGLESITEKIT_PLUGIN_BASENAME;
 				return array( $plugin_basename => true );
 			}

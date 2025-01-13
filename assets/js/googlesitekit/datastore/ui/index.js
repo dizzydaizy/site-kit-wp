@@ -19,17 +19,17 @@
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
+import { combineStores, commonStore } from 'googlesitekit-data';
 import { createErrorStore } from '../../data/create-error-store';
 import { createSnapshotStore } from '../../data/create-snapshot-store';
 import ui from './ui';
-import { STORE_NAME } from './constants';
+import { CORE_UI } from './constants';
 
-const store = Data.combineStores(
-	Data.commonStore,
+const store = combineStores(
+	commonStore,
 	ui,
-	createSnapshotStore( STORE_NAME ),
-	createErrorStore(),
+	createSnapshotStore( CORE_UI ),
+	createErrorStore( CORE_UI )
 );
 
 export const initialState = store.initialState;
@@ -40,7 +40,7 @@ export const resolvers = store.resolvers;
 export const selectors = store.selectors;
 
 export const registerStore = ( registry ) => {
-	registry.registerStore( STORE_NAME, store );
+	registry.registerStore( CORE_UI, store );
 };
 
 export default store;

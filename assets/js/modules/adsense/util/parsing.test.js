@@ -19,24 +19,32 @@
 /**
  * Internal dependencies
  */
-import { parseAccountID, parseAFCClientID } from './parsing';
+import { parseAccountID, parseAccountIDFromExistingTag } from './parsing';
 
-describe( 'parseAccountID', () => {
-	it( 'parses an account ID from a valid client ID', () => {
-		expect( parseAccountID( 'ca-pub-12345678' ) ).toEqual( 'pub-12345678' );
+describe( 'parsers', () => {
+	describe( 'parseAccountID', () => {
+		it( 'parses an account ID from a valid client ID', () => {
+			expect( parseAccountID( 'ca-pub-12345678' ) ).toEqual(
+				'pub-12345678'
+			);
+		} );
+
+		it( 'returns undefined for an invalid client ID', () => {
+			expect( parseAccountID( 'ca-pub-test' ) ).toEqual( undefined );
+		} );
 	} );
 
-	it( 'returns undefined for an invalid client ID', () => {
-		expect( parseAccountID( 'ca-pub-test' ) ).toEqual( undefined );
-	} );
-} );
+	describe( 'parseAccountIDFromExistingTag', () => {
+		it( 'parses an account ID from a valid existing tag', () => {
+			expect( parseAccountIDFromExistingTag( 'pub-12345678' ) ).toEqual(
+				'pub-12345678'
+			);
+		} );
 
-describe( 'parseAFCClientID', () => {
-	it( 'parses an AFC client ID from a valid account ID', () => {
-		expect( parseAFCClientID( 'pub-12345678' ) ).toEqual( 'ca-pub-12345678' );
-	} );
-
-	it( 'returns undefined for an invalid account ID', () => {
-		expect( parseAFCClientID( 'pub-test' ) ).toEqual( undefined );
+		it( 'returns undefined for an invalid existing tag', () => {
+			expect(
+				parseAccountIDFromExistingTag( 'ca-pub-12345678' )
+			).toEqual( undefined );
+		} );
 	} );
 } );

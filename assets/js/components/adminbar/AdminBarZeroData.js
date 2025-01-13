@@ -21,17 +21,20 @@
  */
 import { __ } from '@wordpress/i18n';
 
-const AdminBarZeroData = () => {
+function AdminBarZeroData() {
 	return (
 		<div>
 			<div className="googlesitekit-adminbar__subtitle googlesitekit-font-weight-bold">
 				{ __( 'No data available yet', 'google-site-kit' ) }
 			</div>
 			<div className="googlesitekit-adminbar__subtitle">
-				{ __( 'There is no data available for this content yet. This could be because it was recently created or because nobody has accessed it so far.', 'google-site-kit' ) }
+				{ __(
+					'There is no data available for this content yet. This could be because it was recently created or because nobody has accessed it so far.',
+					'google-site-kit'
+				) }
 			</div>
 		</div>
 	);
-};
+}
 
 export default AdminBarZeroData;

@@ -22,35 +22,22 @@
 import { storiesOf } from '@storybook/react';
 
 /**
- * WordPress dependencies
- */
-import { __ } from '@wordpress/i18n';
-
-/**
  * Internal dependencies
  */
-import Layout from '../assets/js/components/layout/Layout';
-import AdSensePerformanceWidget from '../assets/js/modules/adsense/components/dashboard/AdSensePerformanceWidget';
-import DashboardZeroData from '../assets/js/modules/adsense/components/dashboard/DashboardZeroData';
 import {
 	AccountSelect,
 	UseSnippetSwitch,
-	AdBlockerWarning,
 	UserProfile,
-	SiteSteps,
 } from '../assets/js/modules/adsense/components/common';
 import { WithTestRegistry } from '../tests/js/utils';
 import * as fixtures from '../assets/js/modules/adsense/datastore/__fixtures__';
-import { STORE_NAME } from '../assets/js/modules/adsense/datastore/constants';
-import { CORE_USER } from '../assets/js/googlesitekit/datastore/user/constants';
+import { MODULES_ADSENSE } from '../assets/js/modules/adsense/datastore/constants';
 
 function SetupWrap( { children } ) {
 	return (
 		<div className="googlesitekit-setup">
 			<section className="googlesitekit-setup__wrapper">
-				<div className="googlesitekit-setup-module">
-					{ children }
-				</div>
+				<div className="googlesitekit-setup-module">{ children }</div>
 			</section>
 		</div>
 	);
@@ -60,8 +47,8 @@ storiesOf( 'AdSense Module', module )
 	.add( 'Account Select, none selected', () => {
 		const accounts = fixtures.accountsMultiple;
 		const setupRegistry = ( { dispatch } ) => {
-			dispatch( STORE_NAME ).receiveGetAccounts( accounts );
-			dispatch( STORE_NAME ).receiveGetSettings( {} );
+			dispatch( MODULES_ADSENSE ).receiveGetAccounts( accounts );
+			dispatch( MODULES_ADSENSE ).receiveGetSettings( {} );
 		};
 
 		return (
@@ -77,9 +64,9 @@ storiesOf( 'AdSense Module', module )
 	.add( 'Account Select, selected', () => {
 		const accounts = fixtures.accountsMultiple;
 		const setupRegistry = ( { dispatch } ) => {
-			dispatch( STORE_NAME ).receiveGetAccounts( accounts );
-			dispatch( STORE_NAME ).receiveGetSettings( {
-				accountID: accounts[ 0 ].id,
+			dispatch( MODULES_ADSENSE ).receiveGetAccounts( accounts );
+			dispatch( MODULES_ADSENSE ).receiveGetSettings( {
+				accountID: accounts[ 0 ]._id,
 			} );
 		};
 
@@ -95,7 +82,7 @@ storiesOf( 'AdSense Module', module )
 	} )
 	.add( 'Use Snippet Switch, toggled on (default)', () => {
 		const setupRegistry = ( { dispatch } ) => {
-			dispatch( STORE_NAME ).setUseSnippet( true );
+			dispatch( MODULES_ADSENSE ).setUseSnippet( true );
 		};
 
 		return (
@@ -110,7 +97,7 @@ storiesOf( 'AdSense Module', module )
 	} )
 	.add( 'Use Snippet Switch, toggled off', () => {
 		const setupRegistry = ( { dispatch } ) => {
-			dispatch( STORE_NAME ).setUseSnippet( false );
+			dispatch( MODULES_ADSENSE ).setUseSnippet( false );
 		};
 
 		return (
@@ -118,21 +105,6 @@ storiesOf( 'AdSense Module', module )
 				<SetupWrap>
 					<div className="googlesitekit-setup-module__inputs">
 						<UseSnippetSwitch />
-					</div>
-				</SetupWrap>
-			</WithTestRegistry>
-		);
-	} )
-	.add( 'AdBlocker Warning', () => {
-		const setupRegistry = ( { dispatch } ) => {
-			dispatch( STORE_NAME ).receiveIsAdBlockerActive( true );
-		};
-
-		return (
-			<WithTestRegistry callback={ setupRegistry }>
-				<SetupWrap>
-					<div className="googlesitekit-setup-module__inputs">
-						<AdBlockerWarning />
 					</div>
 				</SetupWrap>
 			</WithTestRegistry>
@@ -150,91 +122,4 @@ storiesOf( 'AdSense Module', module )
 				</SetupWrap>
 			</WithTestRegistry>
 		);
-	} )
-	.add( 'Site Steps', () => {
-		const setupRegistry = ( registry ) => {
-			registry.dispatch( STORE_NAME ).setAccountID( fixtures.accounts[ 0 ].id );
-		};
-
-		return (
-			<WithTestRegistry callback={ setupRegistry }>
-				<SetupWrap>
-					<SiteSteps />
-				</SetupWrap>
-			</WithTestRegistry>
-		);
-	} )
-	.add( 'Dashboard Zero Data', () => {
-		const setupRegistry = ( registry ) => {
-			registry.dispatch( STORE_NAME ).setAccountID( fixtures.accounts[ 0 ].id );
-		};
-
-		return (
-			<WithTestRegistry callback={ setupRegistry }>
-				<Layout fill>
-					<DashboardZeroData />
-				</Layout>
-			</WithTestRegistry>
-		);
-	} )
-	.add( 'Performance', () => {
-		const setupRegistry = ( { dispatch, select } ) => {
-			const {
-				startDate,
-				endDate,
-				compareStartDate,
-				compareEndDate,
-			} = select( CORE_USER ).getDateRangeDates( { compare: true } );
-
-			const currentStatsArgs = {
-				...fixtures.earnings.currentStatsArgs,
-				startDate,
-				endDate,
-			};
-
-			const prevStatsArgs = {
-				...fixtures.earnings.prevStatsArgs,
-				startDate: compareStartDate,
-				endDate: compareEndDate,
-			};
-
-			const currentSummaryArgs = {
-				...fixtures.earnings.currentSummaryArgs,
-				startDate,
-				endDate,
-			};
-
-			const prevSummaryArgs = {
-				...fixtures.earnings.prevSummaryArgs,
-				startDate: compareStartDate,
-				endDate: compareEndDate,
-			};
-
-			dispatch( STORE_NAME ).receiveGetReport( fixtures.earnings.currentStatsData, { options: currentStatsArgs } );
-			dispatch( STORE_NAME ).finishResolution( 'getReport', [ currentStatsArgs ] );
-			dispatch( STORE_NAME ).receiveGetReport( fixtures.earnings.prevStatsData, { options: prevStatsArgs } );
-			dispatch( STORE_NAME ).finishResolution( 'getReport', [ prevStatsArgs ] );
-
-			dispatch( STORE_NAME ).receiveGetReport( fixtures.earnings.currentSummaryData, { options: currentSummaryArgs } );
-			dispatch( STORE_NAME ).finishResolution( 'getReport', [ currentSummaryArgs ] );
-			dispatch( STORE_NAME ).receiveGetReport( fixtures.earnings.prevSummaryData, { options: prevSummaryArgs } );
-			dispatch( STORE_NAME ).finishResolution( 'getReport', [ prevSummaryArgs ] );
-		};
-
-		return (
-			<WithTestRegistry callback={ setupRegistry }>
-				<Layout
-					header
-					title={ __( 'Performance over the last 28 days', 'google-site-kit' ) }
-					headerCTALabel={ __( 'See full stats in AdSense', 'google-site-kit' ) }
-					headerCTALink="#"
-				>
-					<AdSensePerformanceWidget
-						handleDataError={ () => {} }
-						handleDataSuccess={ () => {} }
-					/>
-				</Layout>
-			</WithTestRegistry>
-		);
-	} )
-;
+	} );

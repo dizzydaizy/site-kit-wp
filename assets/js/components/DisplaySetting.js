@@ -18,12 +18,18 @@
 
 import PropTypes from 'prop-types';
 
-const DisplaySetting = ( { value } ) => {
-	return value || '\u00A0';
-};
+export const BLANK_SPACE = '\u00A0';
+
+function DisplaySetting( { value } ) {
+	return value || BLANK_SPACE;
+}
 
 DisplaySetting.propTypes = {
-	value: PropTypes.oneOfType( [ PropTypes.string, PropTypes.bool, PropTypes.number ] ),
+	value: PropTypes.oneOfType( [
+		PropTypes.string,
+		PropTypes.bool,
+		PropTypes.number,
+	] ),
 };
 
 export default DisplaySetting;

@@ -28,31 +28,66 @@ function directories( relativePath ) {
 		return [];
 	}
 
-	return fs.readdirSync( dir, { withFileTypes: true } )
+	return fs
+		.readdirSync( dir, { withFileTypes: true } )
 		.filter( ( file ) => file.isDirectory() )
 		.map( ( file ) => file.name );
 }
 
 function getComponentNames( componentPath ) {
-	return fs.readdirSync( componentPath )
-		.filter( ( name ) => ! /^index|\.(stories|test)\.js$/.test( name ) )
+	return fs
+		.readdirSync( componentPath )
+		.filter(
+			( name ) =>
+				! /^index|utils|__snapshots__|\.(stories|test)\.js$/.test(
+					name
+				)
+		)
 		.map( ( name ) => name.replace( /\..*/, '' ) );
 }
 
 describe( 'all modules', () => {
 	describe.each( directories( '.' ) )( '%s', ( moduleSlug ) => {
 		const components = directories( `${ moduleSlug }/components` );
-		if ( ! components.length ) {
+
+		// Filter out the directories that don't have an index.js file.
+		const filteredComponents = components.filter(
+			( component ) =>
+				component !== 'audience-segmentation' &&
+				component !== 'custom-dimensions-report-options'
+		);
+
+		if ( ! filteredComponents.length ) {
 			return;
 		}
 
-		it.each( components )( 'components/%s has an index module with all components exported', ( componentDir ) => {
-			const componentDirPath = path.join( __dirname, moduleSlug, 'components', componentDir );
-			const { default: _, ...indexExports } = require( `${ componentDirPath }/index.js` ); // eslint-disable-line no-unused-vars
-			const indexExportNames = Object.keys( indexExports ).sort();
-			const componentNames = getComponentNames( componentDirPath ).sort();
+		it.each( filteredComponents )(
+			'components/%s has an index module with all components exported',
+			( componentDir ) => {
+				const componentDirPath = path.join(
+					__dirname,
+					moduleSlug,
+					'components',
+					componentDir
+				);
 
-			expect( indexExportNames ).toEqual( componentNames );
-		} );
+				const {
+					// eslint-disable-next-line no-unused-vars
+					default: _,
+					...indexExports
+				} = require( `${ componentDirPath }/index.js` );
+				const indexExportNames = Object.keys( indexExports ).sort();
+
+				const componentNames =
+					getComponentNames( componentDirPath ).sort();
+
+				const filteredComponentNames = componentNames.filter(
+					( component ) =>
+						component !== 'custom-dimensions-report-options'
+				);
+
+				expect( indexExportNames ).toEqual( filteredComponentNames );
+			}
+		);
 	} );
 } );

@@ -25,26 +25,37 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import { Select, Option } from '../../../../material-components';
-import ProgressBar from '../../../../components/ProgressBar';
-import { STORE_NAME } from '../../datastore/constants';
-const { useSelect, useDispatch } = Data;
+import { Option, ProgressBar, Select } from 'googlesitekit-components';
+import { useSelect, useDispatch } from 'googlesitekit-data';
+import { trackEvent } from '../../../../util';
+import { MODULES_ADSENSE } from '../../datastore/constants';
+import useViewContext from '../../../../hooks/useViewContext';
 
 export default function AccountSelect() {
-	const accountID = useSelect( ( select ) => select( STORE_NAME ).getAccountID() );
-	const { accounts, hasResolvedAccounts } = useSelect( ( select ) => ( {
-		accounts: select( STORE_NAME ).getAccounts(),
-		hasResolvedAccounts: select( STORE_NAME ).hasFinishedResolution( 'getAccounts' ),
-	} ) );
+	const viewContext = useViewContext();
+	const eventCategory = `${ viewContext }_adsense`;
 
-	const { setAccountID } = useDispatch( STORE_NAME );
-	const onChange = useCallback( ( index, item ) => {
-		const newAccountID = item.dataset.value;
-		if ( accountID !== newAccountID ) {
-			setAccountID( newAccountID );
-		}
-	}, [ accountID, setAccountID ] );
+	const accountID = useSelect( ( select ) =>
+		select( MODULES_ADSENSE ).getAccountID()
+	);
+	const accounts = useSelect( ( select ) =>
+		select( MODULES_ADSENSE ).getAccounts()
+	);
+	const hasResolvedAccounts = useSelect( ( select ) =>
+		select( MODULES_ADSENSE ).hasFinishedResolution( 'getAccounts' )
+	);
+
+	const { setAccountID } = useDispatch( MODULES_ADSENSE );
+	const onChange = useCallback(
+		( index, item ) => {
+			const newAccountID = item.dataset.value;
+			if ( accountID !== newAccountID ) {
+				setAccountID( newAccountID );
+				trackEvent( eventCategory, 'change_account' );
+			}
+		},
+		[ accountID, eventCategory, setAccountID ]
+	);
 
 	if ( ! hasResolvedAccounts ) {
 		return <ProgressBar small />;
@@ -59,12 +70,9 @@ export default function AccountSelect() {
 			enhanced
 			outlined
 		>
-			{ ( accounts || [] ).map( ( { id, name }, index ) => (
-				<Option
-					key={ index }
-					value={ id }
-				>
-					{ name }
+			{ ( accounts || [] ).map( ( { _id, displayName }, index ) => (
+				<Option key={ index } value={ _id }>
+					{ displayName }
 				</Option>
 			) ) }
 		</Select>

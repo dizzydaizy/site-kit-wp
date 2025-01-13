@@ -25,13 +25,16 @@ import { Fragment } from '@wordpress/element';
  * Internal dependencies
  */
 import AuthError from './AuthError';
-import UnsatisfiedScopesAlert from './UnsatisfiedScopesAlert';
+import InternalServerError from './InternalServerError';
+import Notifications from './Notifications';
+import { NOTIFICATION_AREAS } from '../../googlesitekit/notifications/datastore/constants';
 
 export default function ErrorNotifications() {
 	return (
 		<Fragment>
+			<InternalServerError />
 			<AuthError />
-			<UnsatisfiedScopesAlert />
+			<Notifications areaSlug={ NOTIFICATION_AREAS.ERRORS } />
 		</Fragment>
 	);
 }

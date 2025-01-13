@@ -19,120 +19,226 @@
 /**
  * External dependencies
  */
-import PropTypes from 'prop-types';
 import classnames from 'classnames';
+import PropTypes from 'prop-types';
+import { Link as RouterLink } from 'react-router-dom';
 
 /**
  * WordPress dependencies
  */
+import { forwardRef } from '@wordpress/element';
 import { _x } from '@wordpress/i18n';
 
-function Link( {
-	href,
-	children,
-	className,
-	arrow,
-	external,
-	hideExternalIndicator,
-	inverse,
-	back,
-	small,
-	inherit,
-	caps,
-	danger,
-	disabled,
-	'aria-label': ariaLabel,
-	...extraProps
-} ) {
-	// Note: the disabled attribute does not alter behavior of anchor tags,
-	// so if disabled we force it to be a button.
-	const isAnchor = href && ! disabled;
-	const SemanticLink = isAnchor ? 'a' : 'button';
+/**
+ * Internal dependencies
+ */
+import ArrowIcon from '../../svg/icons/arrow.svg';
+import ArrowInverseIcon from '../../svg/icons/arrow-inverse.svg';
+import BackIcon from '../../svg/icons/back.svg';
+import ExternalIcon from '../../svg/icons/external.svg';
+import IconWrapper from './IconWrapper';
 
-	const getAriaLabel = () => {
-		let label = ariaLabel;
+const BUTTON = 'BUTTON';
+const BUTTON_DISABLED = 'BUTTON_DISABLED';
+const EXTERNAL_LINK = 'EXTERNAL_LINK';
+const LINK = 'LINK';
+const ROUTER_LINK = 'ROUTER_LINK';
 
-		if ( ! external ) {
-			return label;
-		} else if ( typeof children === 'string' ) {
-			label = label || children;
+const Link = forwardRef( ( props, ref ) => {
+	const {
+		'aria-label': ariaLabelProp,
+		secondary = false,
+		arrow = false,
+		back = false,
+		caps = false,
+		children,
+		className = '',
+		danger = false,
+		disabled = false,
+		external = false,
+		hideExternalIndicator = false,
+		href = '',
+		inverse = false,
+		noFlex = false,
+		onClick,
+		small = false,
+		standalone = false,
+		linkButton = false,
+		to,
+		leadingIcon,
+		trailingIcon,
+		...otherProps
+	} = props;
+
+	const getType = () => {
+		// Force button element if `onClick` prop is passed and there's no `href`
+		// or `to` prop.
+		if ( ! href && ! to && onClick ) {
+			if ( disabled ) {
+				return BUTTON_DISABLED;
+			}
+
+			return BUTTON;
 		}
 
-		const newTabText = _x( '(opens in a new tab)', 'screen reader text', 'google-site-kit' );
-		if ( label ) {
-			return `${ label } ${ newTabText }`;
+		// Only `RouterLink` uses the `to` prop.
+		if ( to ) {
+			return ROUTER_LINK;
 		}
-		return newTabText;
+
+		// The external prop means this is an external link, which will also output
+		// an `<a>` tag.
+		if ( external ) {
+			return EXTERNAL_LINK;
+		}
+
+		// A regular `<a>` tag without external indicators.
+		return LINK;
 	};
 
+	const type = getType();
+
+	const getLinkComponent = () => {
+		if ( type === BUTTON || type === BUTTON_DISABLED ) {
+			return 'button';
+		}
+
+		if ( type === ROUTER_LINK ) {
+			return RouterLink;
+		}
+
+		return 'a';
+	};
+
+	const getAriaLabel = () => {
+		// Otherwise, create an ARIA label if the link opens in a new window
+		// or is disabled, to add extra context to the link.
+		let labelSuffix;
+
+		if ( type === EXTERNAL_LINK ) {
+			labelSuffix = _x(
+				'(opens in a new tab)',
+				'screen reader text',
+				'google-site-kit'
+			);
+		}
+
+		if ( type === BUTTON_DISABLED ) {
+			labelSuffix = _x(
+				'(disabled)',
+				'screen reader text',
+				'google-site-kit'
+			);
+		}
+
+		if ( ! labelSuffix ) {
+			return ariaLabelProp;
+		}
+
+		// If an ARIA label was supplied, use that.
+		if ( ariaLabelProp ) {
+			return `${ ariaLabelProp } ${ labelSuffix }`;
+		}
+
+		// Otherwise, use the children prop if it's a string.
+		if ( typeof children === 'string' ) {
+			return `${ children } ${ labelSuffix }`;
+		}
+
+		// If there isn't a string we can use to create the label, we shouldn't
+		// make one; otherwise we'll only create an ARIA label that says
+		// "(opens in a new tab)", which is not good.
+		return undefined;
+	};
+
+	const LinkComponent = getLinkComponent();
+	const ariaLabel = getAriaLabel();
+
+	// Set the prefix/suffix icons, based on the type of link this is and
+	// the props supplied.
+	let leadingIconToUse = leadingIcon;
+	let trailingIconToUse = trailingIcon;
+
+	if ( back ) {
+		leadingIconToUse = <BackIcon width={ 14 } height={ 14 } />;
+	}
+
+	if ( external && ! hideExternalIndicator ) {
+		trailingIconToUse = <ExternalIcon width={ 14 } height={ 14 } />;
+	}
+
+	if ( arrow && ! inverse ) {
+		trailingIconToUse = <ArrowIcon width={ 14 } height={ 14 } />;
+	}
+
+	if ( arrow && inverse ) {
+		trailingIconToUse = <ArrowInverseIcon width={ 14 } height={ 14 } />;
+	}
+
 	return (
-		<SemanticLink
-			className={ classnames(
-				'googlesitekit-cta-link',
-				className,
-				{
-					'googlesitekit-cta-link--arrow': arrow,
-					'googlesitekit-cta-link--external': external && ! hideExternalIndicator,
-					'googlesitekit-cta-link--inverse': inverse,
-					'googlesitekit-cta-link--back': back,
-					'googlesitekit-cta-link--small': small,
-					'googlesitekit-cta-link--inherit': inherit,
-					'googlesitekit-cta-link--caps': caps,
-					'googlesitekit-cta-link--danger': danger,
-					'googlesitekit-cta-link--disabled': disabled,
-				},
-			) }
-			href={ isAnchor ? href : undefined }
-			target={ isAnchor && external ? '_blank' : undefined }
-			rel={ external ? 'noopener noreferrer' : undefined }
+		<LinkComponent
+			aria-label={ ariaLabel }
+			className={ classnames( 'googlesitekit-cta-link', className, {
+				'googlesitekit-cta-link--secondary': secondary,
+				'googlesitekit-cta-link--inverse': inverse,
+				'googlesitekit-cta-link--small': small,
+				'googlesitekit-cta-link--caps': caps,
+				'googlesitekit-cta-link--danger': danger,
+				'googlesitekit-cta-link--disabled': disabled,
+				'googlesitekit-cta-link--standalone': standalone,
+				'googlesitekit-cta-link--link-button': linkButton,
+				'googlesitekit-cta-link--no-flex': !! noFlex,
+			} ) }
 			disabled={ disabled }
-			aria-label={ getAriaLabel() }
-			{ ...extraProps }
+			href={
+				( type === LINK || type === EXTERNAL_LINK ) && ! disabled
+					? href
+					: undefined
+			}
+			onClick={ onClick }
+			rel={ type === EXTERNAL_LINK ? 'noopener noreferrer' : undefined }
+			ref={ ref }
+			target={ type === EXTERNAL_LINK ? '_blank' : undefined }
+			to={ to }
+			{ ...otherProps }
 		>
-			{ children }
-		</SemanticLink>
+			{ !! leadingIconToUse && (
+				<IconWrapper marginRight={ 5 }>
+					{ leadingIconToUse }
+				</IconWrapper>
+			) }
+			<span className="googlesitekit-cta-link__contents">
+				{ children }
+			</span>
+			{ !! trailingIconToUse && (
+				<IconWrapper marginLeft={ 5 }>
+					{ trailingIconToUse }
+				</IconWrapper>
+			) }
+		</LinkComponent>
 	);
-}
+} );
 
 Link.propTypes = {
-	dangerouslySetInnerHTML: PropTypes.shape( {
-		__html: PropTypes.string,
-	} ),
-	onClick: PropTypes.func,
-	href: PropTypes.string,
-	children: PropTypes.oneOfType( [
-		PropTypes.string.isRequired,
-		PropTypes.array.isRequired,
-		PropTypes.element.isRequired,
-	] ),
-	className: PropTypes.string,
 	arrow: PropTypes.bool,
-	external: PropTypes.bool,
-	hideExternalIndicator: PropTypes.bool,
-	inverse: PropTypes.bool,
 	back: PropTypes.bool,
-	small: PropTypes.bool,
-	inherit: PropTypes.bool,
 	caps: PropTypes.bool,
+	children: PropTypes.node,
+	className: PropTypes.string,
 	danger: PropTypes.bool,
 	disabled: PropTypes.bool,
-};
-
-Link.defaultProps = {
-	dangerouslySetInnerHTML: undefined,
-	onClick: null,
-	href: '',
-	className: '',
-	arrow: false,
-	external: false,
-	hideExternalIndicator: false,
-	inverse: false,
-	back: false,
-	small: false,
-	inherit: false,
-	caps: false,
-	danger: false,
-	disabled: false,
+	external: PropTypes.bool,
+	hideExternalIndicator: PropTypes.bool,
+	href: PropTypes.string,
+	inverse: PropTypes.bool,
+	leadingIcon: PropTypes.node,
+	linkButton: PropTypes.bool,
+	noFlex: PropTypes.bool,
+	onClick: PropTypes.func,
+	small: PropTypes.bool,
+	standalone: PropTypes.bool,
+	to: PropTypes.string,
+	trailingIcon: PropTypes.node,
 };
 
 export default Link;

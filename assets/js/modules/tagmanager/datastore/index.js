@@ -19,23 +19,25 @@
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
+import { combineStores } from 'googlesitekit-data';
 import { createSnapshotStore } from '../../../googlesitekit/data/create-snapshot-store';
-import { STORE_NAME } from './constants';
+import { MODULES_TAGMANAGER } from './constants';
 import baseModuleStore from './base';
 import accounts from './accounts';
 import containers from './containers';
 import tags from './tags';
 import versions from './versions';
 import service from './service';
+import settings from './settings';
 
-const store = Data.combineStores(
+const store = combineStores(
 	baseModuleStore,
 	accounts,
 	containers,
 	tags,
 	versions,
-	createSnapshotStore( STORE_NAME ),
+	createSnapshotStore( MODULES_TAGMANAGER ),
+	settings,
 	service
 );
 
@@ -49,7 +51,7 @@ export const {
 } = store;
 
 export const registerStore = ( registry ) => {
-	registry.registerStore( STORE_NAME, store );
+	registry.registerStore( MODULES_TAGMANAGER, store );
 };
 
 export default store;

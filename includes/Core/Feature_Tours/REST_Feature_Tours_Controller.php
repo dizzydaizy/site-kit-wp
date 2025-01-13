@@ -10,11 +10,9 @@
 
 namespace Google\Site_Kit\Core\Feature_Tours;
 
-use Google\Site_Kit\Context;
 use Google\Site_Kit\Core\Permissions\Permissions;
 use Google\Site_Kit\Core\REST_API\REST_Route;
 use Google\Site_Kit\Core\REST_API\REST_Routes;
-use Google\Site_Kit\Core\Storage\User_Options;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -30,22 +28,6 @@ use WP_REST_Server;
 class REST_Feature_Tours_Controller {
 
 	/**
-	 * Context instance.
-	 *
-	 * @since 1.27.0
-	 * @var Context
-	 */
-	protected $context;
-
-	/**
-	 * User_Options instance.
-	 *
-	 * @since 1.27.0
-	 * @var User_Options
-	 */
-	protected $user_options;
-
-	/**
 	 * Dismissed_Tours instance.
 	 *
 	 * @since 1.27.0
@@ -58,13 +40,10 @@ class REST_Feature_Tours_Controller {
 	 *
 	 * @since 1.27.0
 	 *
-	 * @param Context      $context Plugin context.
-	 * @param User_Options $user_options Optional. User option API. Default is a new instance.
+	 * @param Dismissed_Tours $dismissed_tours Dismissed tours instance.
 	 */
-	public function __construct( Context $context, User_Options $user_options = null ) {
-		$this->context         = $context;
-		$this->user_options    = $user_options ?: new User_Options( $context );
-		$this->dismissed_tours = new Dismissed_Tours( $this->user_options );
+	public function __construct( Dismissed_Tours $dismissed_tours ) {
+		$this->dismissed_tours = $dismissed_tours;
 	}
 
 	/**
@@ -100,8 +79,8 @@ class REST_Feature_Tours_Controller {
 	 * @return REST_Route[] List of REST_Route objects.
 	 */
 	protected function get_rest_routes() {
-		$can_authenticate = function () {
-			return current_user_can( Permissions::AUTHENTICATE );
+		$can_dismiss_tour = function () {
+			return current_user_can( Permissions::AUTHENTICATE ) || current_user_can( Permissions::VIEW_SHARED_DASHBOARD );
 		};
 
 		return array(
@@ -112,7 +91,7 @@ class REST_Feature_Tours_Controller {
 					'callback'            => function () {
 						return new WP_REST_Response( $this->dismissed_tours->get() );
 					},
-					'permission_callback' => $can_authenticate,
+					'permission_callback' => $can_dismiss_tour,
 				)
 			),
 			new REST_Route(
@@ -135,7 +114,7 @@ class REST_Feature_Tours_Controller {
 
 						return new WP_REST_Response( $this->dismissed_tours->get() );
 					},
-					'permission_callback' => $can_authenticate,
+					'permission_callback' => $can_dismiss_tour,
 					'args'                => array(
 						'data' => array(
 							'type'     => 'object',

@@ -25,7 +25,7 @@ import invariant from 'invariant';
  * Internal dependencies
  */
 import API from 'googlesitekit-api';
-import Data from 'googlesitekit-data';
+import { commonActions, combineStores } from 'googlesitekit-data';
 import { createFetchStore } from './create-fetch-store';
 
 // Actions
@@ -50,11 +50,12 @@ const REMOVE_NOTIFICATION = 'REMOVE_NOTIFICATION';
  * @return {Object} The notifications store object, with additional `STORE_NAME` and
  *                  `initialState` properties.
  */
-export const createNotificationsStore = ( type, identifier, datapoint, {
-	client = true,
-	server = true,
-	storeName = undefined,
-} = {} ) => {
+export const createNotificationsStore = (
+	type,
+	identifier,
+	datapoint,
+	{ client = true, server = true, storeName = undefined } = {}
+) => {
 	invariant( type, 'type is required.' );
 	invariant( identifier, 'identifier is required.' );
 	invariant( datapoint, 'datapoint is required.' );
@@ -128,7 +129,8 @@ export const createNotificationsStore = ( type, identifier, datapoint, {
 
 	const controls = {};
 
-	const reducer = ( state = initialState, { type, payload } ) => { // eslint-disable-line no-shadow
+	// eslint-disable-next-line no-shadow
+	const reducer = ( state = initialState, { type, payload } ) => {
 		switch ( type ) {
 			case ADD_NOTIFICATION: {
 				const { notification } = payload;
@@ -136,7 +138,7 @@ export const createNotificationsStore = ( type, identifier, datapoint, {
 				return {
 					...state,
 					clientNotifications: {
-						...state.clientNotifications || {},
+						...( state.clientNotifications || {} ),
 						[ notification.id ]: notification,
 					},
 				};
@@ -151,10 +153,13 @@ export const createNotificationsStore = ( type, identifier, datapoint, {
 					'undefined' === typeof state.clientNotifications[ id ]
 				) {
 					// Trigger a warning clarifying that if a server-side notification is attempted to be removed.
-					if ( 'undefined' !== typeof state.serverNotifications &&
+					if (
+						'undefined' !== typeof state.serverNotifications &&
 						'undefined' !== typeof state.serverNotifications[ id ]
 					) {
-						global.console.warn( `Cannot remove server-side notification with ID "${ id }"; this may be changed in a future release.` );
+						global.console.warn(
+							`Cannot remove server-side notification with ID "${ id }"; this may be changed in a future release.`
+						);
 					}
 
 					return state;
@@ -177,7 +182,14 @@ export const createNotificationsStore = ( type, identifier, datapoint, {
 
 	const resolvers = {
 		*getNotifications() {
-			yield fetchGetNotificationsStore.actions.fetchGetNotifications();
+			const registry = yield commonActions.getRegistry();
+			const notifications = registry
+				.select( STORE_NAME )
+				.getNotifications();
+
+			if ( ! notifications ) {
+				yield fetchGetNotificationsStore.actions.fetchGetNotifications();
+			}
 		},
 	};
 
@@ -207,7 +219,10 @@ export const createNotificationsStore = ( type, identifier, datapoint, {
 			// haven't loaded yet, return `undefined` (the value of
 			// `serverNotifications` here) to signify to anything using this
 			// selector that notifications have not loaded yet.
-			if ( 'undefined' === typeof serverNotifications && 'undefined' === typeof clientNotifications ) {
+			if (
+				'undefined' === typeof serverNotifications &&
+				'undefined' === typeof clientNotifications
+			) {
 				return serverNotifications;
 			}
 
@@ -215,23 +230,20 @@ export const createNotificationsStore = ( type, identifier, datapoint, {
 			// we should return them, even if the server notifications haven't
 			// finished loading yet.
 			return Object.values( {
-				...serverNotifications || {},
-				...clientNotifications || {},
+				...( serverNotifications || {} ),
+				...( clientNotifications || {} ),
 			} );
 		},
 	};
 
-	const store = Data.combineStores(
-		fetchGetNotificationsStore,
-		{
-			initialState,
-			actions,
-			controls,
-			reducer,
-			resolvers,
-			selectors,
-		}
-	);
+	const store = combineStores( fetchGetNotificationsStore, {
+		initialState,
+		actions,
+		controls,
+		reducer,
+		resolvers,
+		selectors,
+	} );
 	return {
 		...store,
 		STORE_NAME,

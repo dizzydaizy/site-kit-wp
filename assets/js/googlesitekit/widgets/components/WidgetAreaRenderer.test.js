@@ -17,51 +17,78 @@
  */
 
 /**
+ * External dependencies
+ */
+import { getByText } from '@testing-library/dom';
+
+/**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
+import { useSelect } from 'googlesitekit-data';
 import WidgetAreaRenderer from './WidgetAreaRenderer';
-import { STORE_NAME, WIDGET_WIDTHS, WIDGET_AREA_STYLES } from '../datastore/constants';
+import * as tracking from '../../../util/tracking';
+import {
+	CORE_WIDGETS,
+	WIDGET_WIDTHS,
+	WIDGET_AREA_STYLES,
+} from '../datastore/constants';
 import { CORE_SITE } from '../../../googlesitekit/datastore/site/constants';
 import {
 	createTestRegistry,
 	render,
-	unsubscribeFromAll,
-	waitFor,
+	provideModules,
+	provideUserCapabilities,
+	muteFetch,
 } from '../../../../../tests/js/test-utils';
+import {
+	VIEW_CONTEXT_MAIN_DASHBOARD,
+	VIEW_CONTEXT_MAIN_DASHBOARD_VIEW_ONLY,
+} from '../../constants';
+import {
+	PERMISSION_READ_SHARED_MODULE_DATA,
+	PERMISSION_VIEW_DASHBOARD,
+} from '../../datastore/user/constants';
 
-const { useSelect } = Data;
-
-const createTestRegistryWithArea = ( areaName, style = WIDGET_AREA_STYLES.BOXES ) => {
+const createTestRegistryWithArea = (
+	areaName,
+	style = WIDGET_AREA_STYLES.BOXES
+) => {
 	const registry = createTestRegistry();
 
-	registry.dispatch( STORE_NAME ).registerWidgetArea( areaName, {
+	registry.dispatch( CORE_WIDGETS ).registerWidgetArea( areaName, {
 		title: 'Dashboard Header',
 		subtitle: 'Cool stuff for yoursite.com',
 		style,
 	} );
-	registry.dispatch( STORE_NAME ).assignWidgetArea( areaName, 'dashboard' );
+	registry.dispatch( CORE_WIDGETS ).assignWidgetArea( areaName, 'dashboard' );
 
 	return registry;
 };
 
-const WidgetComponent = () => {
-	const isConnected = useSelect( ( select ) => select( CORE_SITE ).isConnected() );
+function WidgetComponent() {
+	const isConnected = useSelect( ( select ) =>
+		select( CORE_SITE ).isConnected()
+	);
 
-	return ( <div>Foo bar! Connected: { isConnected ? ' yes' : 'no' }.</div> );
-};
+	return <div>Foo bar! Connected: { isConnected ? ' yes' : 'no' }.</div>;
+}
 
-const WidgetComponentEmpty = ( { WidgetNull } ) => {
+function WidgetComponentEmpty( { WidgetNull } ) {
 	return <WidgetNull />;
-};
+}
+
+function WidgetComponentErrored() {
+	throw new Error( 'Site Kit error message.' );
+}
 
 const createWidgets = ( registry, areaName, widgets ) => {
-	widgets.forEach( ( { Component, slug, width } ) => {
-		registry.dispatch( STORE_NAME ).registerWidget( slug, {
+	widgets.forEach( ( { Component, modules, slug, width } ) => {
+		registry.dispatch( CORE_WIDGETS ).registerWidget( slug, {
 			Component,
+			modules,
 			width,
 		} );
-		registry.dispatch( STORE_NAME ).assignWidget( slug, areaName );
+		registry.dispatch( CORE_WIDGETS ).assignWidget( slug, areaName );
 	} );
 };
 
@@ -71,250 +98,815 @@ describe( 'WidgetAreaRenderer', () => {
 
 	beforeEach( async () => {
 		registry = createTestRegistryWithArea( areaName );
+
+		provideModules( registry );
+
 		const connection = { connected: true };
 		await registry.dispatch( CORE_SITE ).receiveGetConnection( connection );
-	} );
 
-	afterEach( () => {
-		unsubscribeFromAll( registry );
+		const fetchGetExpiredItems = new RegExp(
+			'^/google-site-kit/v1/core/user/data/expirable-items'
+		);
+		muteFetch( fetchGetExpiredItems );
 	} );
 
 	it( 'should return the same number of elements as widgets from a selector', async () => {
 		createWidgets( registry, areaName, [
-			{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.FULL },
-			{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.FULL },
-			{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.FULL },
+			{
+				Component: WidgetComponent,
+				slug: 'one',
+				width: WIDGET_WIDTHS.FULL,
+			},
+			{
+				Component: WidgetComponent,
+				slug: 'two',
+				width: WIDGET_WIDTHS.FULL,
+			},
+			{
+				Component: WidgetComponent,
+				slug: 'three',
+				width: WIDGET_WIDTHS.FULL,
+			},
 		] );
 
-		const widgets = registry.select( STORE_NAME ).getWidgets( areaName );
-		const { container } = render( <WidgetAreaRenderer slug={ areaName } />, { registry } );
+		const widgets = registry.select( CORE_WIDGETS ).getWidgets( areaName );
+		const { container, waitForRegistry } = render(
+			<WidgetAreaRenderer slug={ areaName } />,
+			{ registry }
+		);
 
-		await waitFor( () => {
-			expect( widgets ).toHaveLength( 3 );
-			expect( container.firstChild.querySelectorAll( '.googlesitekit-widget' ) ).toHaveLength( 3 );
+		await waitForRegistry();
+
+		expect( widgets ).toHaveLength( 3 );
+		expect(
+			container.firstChild.querySelectorAll( '.googlesitekit-widget' )
+		).toHaveLength( 3 );
+	} );
+
+	it( 'should only render widgets the user has access to in a view-only viewContext', async () => {
+		createWidgets( registry, areaName, [
+			{
+				Component: WidgetComponent,
+				modules: 'search-console',
+				slug: 'one',
+				width: WIDGET_WIDTHS.FULL,
+			},
+			{
+				Component: WidgetComponent,
+				modules: 'search-console',
+				slug: 'two',
+				width: WIDGET_WIDTHS.FULL,
+			},
+			{
+				Component() {
+					return <div>AdSense is here</div>;
+				},
+				modules: 'adsense',
+				slug: 'three',
+				width: WIDGET_WIDTHS.FULL,
+			},
+		] );
+
+		// Make sure our test module is loaded so we can test for it appearing
+		// when the view-only dashboard is rendererd.
+		provideModules( registry, [ { slug: 'AdSense', name: 'AdSense' } ] );
+
+		// Allow the current user to view the Search Console module's data,
+		// but not AdSense's data.
+		provideUserCapabilities( registry, {
+			[ PERMISSION_VIEW_DASHBOARD ]: true,
+			[ `${ PERMISSION_READ_SHARED_MODULE_DATA }::["adsense"]` ]: false,
+			[ `${ PERMISSION_READ_SHARED_MODULE_DATA }::["search-console"]` ]: true,
 		} );
+
+		const widgets = registry.select( CORE_WIDGETS ).getWidgets( areaName );
+		const { container, waitForRegistry } = render(
+			<WidgetAreaRenderer slug={ areaName } />,
+			{ registry, viewContext: VIEW_CONTEXT_MAIN_DASHBOARD_VIEW_ONLY }
+		);
+
+		await waitForRegistry();
+
+		// There should be three widgets registered in the datastore.
+		expect( widgets ).toHaveLength( 3 );
+
+		// Only two widgets should appear in the DOM, because we don't have
+		// access to the third, AdSense widget.
+		expect(
+			container.firstChild.querySelectorAll( '.googlesitekit-widget' )
+		).toHaveLength( 2 );
+
+		// Ensure the AdSense widget is not rendered.
+		expect( container.firstChild ).not.toHaveTextContent(
+			'AdSense is here'
+		);
+	} );
+
+	it( 'should render all widgets when not in a view-only viewContext', async () => {
+		createWidgets( registry, areaName, [
+			{
+				Component: WidgetComponent,
+				modules: 'search-console',
+				slug: 'one',
+				width: WIDGET_WIDTHS.FULL,
+			},
+			{
+				Component: WidgetComponent,
+				modules: 'search-console',
+				slug: 'two',
+				width: WIDGET_WIDTHS.FULL,
+			},
+			{
+				Component() {
+					return <div>AdSense is here</div>;
+				},
+				modules: 'adsense',
+				slug: 'three',
+				width: WIDGET_WIDTHS.FULL,
+			},
+		] );
+
+		// Add our dashboard sharing capabilities into state.
+		const widgets = registry.select( CORE_WIDGETS ).getWidgets( areaName );
+		const { container, waitForRegistry } = render(
+			<WidgetAreaRenderer slug={ areaName } />,
+			{ registry, viewContext: VIEW_CONTEXT_MAIN_DASHBOARD }
+		);
+
+		await waitForRegistry();
+
+		// There should be three widgets registered in the datastore.
+		expect( widgets ).toHaveLength( 3 );
+
+		// All widgets should appear in the DOM because we aren't in a view-only
+		// viewContext.
+		expect(
+			container.firstChild.querySelectorAll( '.googlesitekit-widget' )
+		).toHaveLength( 3 );
+
+		// Ensure the AdSense widget is rendered.
+		expect( container.firstChild ).toHaveTextContent( 'AdSense is here' );
 	} );
 
 	it( 'should treat widgets that render no content as zero-width (ignoring them)', async () => {
 		createWidgets( registry, areaName, [
-			{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.QUARTER },
-			{ Component: WidgetComponentEmpty, slug: 'empty', width: WIDGET_WIDTHS.HALF },
-			{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.QUARTER },
+			{
+				Component: WidgetComponent,
+				slug: 'one',
+				width: WIDGET_WIDTHS.QUARTER,
+			},
+			{
+				Component: WidgetComponentEmpty,
+				slug: 'empty',
+				width: WIDGET_WIDTHS.HALF,
+			},
+			{
+				Component: WidgetComponent,
+				slug: 'three',
+				width: WIDGET_WIDTHS.QUARTER,
+			},
 		] );
 
-		const { container } = render( <WidgetAreaRenderer slug={ areaName } />, { registry } );
+		const { container, waitForRegistry } = render(
+			<WidgetAreaRenderer slug={ areaName } />,
+			{ registry }
+		);
 
-		await waitFor( () => {
-			expect( container.firstChild.querySelectorAll( '.googlesitekit-widget-area-widgets' )[ 0 ] ).toMatchSnapshot();
-		} );
+		await waitForRegistry();
+
+		expect(
+			container.firstChild.querySelectorAll(
+				'.googlesitekit-widget-area-widgets'
+			)[ 0 ]
+		).toMatchSnapshot();
 	} );
 
-	it.each(
+	it.each( [
 		[
+			'12, 3-6 -> 12, 4-8',
 			[
-				'12, 3-6 -> 12, 4-8',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.FULL },
-					{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.HALF },
-				],
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.FULL,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'two',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'three',
+					width: WIDGET_WIDTHS.HALF,
+				},
 			],
-			[
-				'3, 12, 3-6, 6 -> 3, 12, 4-8, 6',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.FULL },
-					{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'four', width: WIDGET_WIDTHS.HALF },
-					{ Component: WidgetComponent, slug: 'five', width: WIDGET_WIDTHS.HALF },
-				],
-			],
-			[
-				'3-3-3, 6 -> 4-4-4, 6',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'four', width: WIDGET_WIDTHS.HALF },
-				],
-			],
-			[
-				'3-3-3, 12 -> 4-4-4, 12',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'four', width: WIDGET_WIDTHS.FULL },
-				],
-			],
-			[
-				'3-3-3, 12, 3-3-3 -> 4-4-4, 12, 4-4-4',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'four', width: WIDGET_WIDTHS.FULL },
-					{ Component: WidgetComponent, slug: 'five', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'six', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'seven', width: WIDGET_WIDTHS.QUARTER },
-				],
-			],
-		]
-	)( 'should resize widgets in a row that spans 9 columns to fill the full 12 columns (%s)', async ( testName, widgets ) => {
-		createWidgets( registry, areaName, widgets );
-
-		const { container } = render( <WidgetAreaRenderer slug={ areaName } />, { registry } );
-		await waitFor( () => {
-			expect( container.firstChild.querySelectorAll( '.googlesitekit-widget-area-widgets' )[ 0 ] ).toMatchSnapshot();
-		} );
-	} );
-
-	it.each(
+		],
 		[
+			'3, 12, 3-6, 6 -> 3, 12, 4-8, 6',
 			[
-				'3-3',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.QUARTER },
-				],
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'two',
+					width: WIDGET_WIDTHS.FULL,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'three',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'four',
+					width: WIDGET_WIDTHS.HALF,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'five',
+					width: WIDGET_WIDTHS.HALF,
+				},
 			],
-			[
-				'6',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.HALF },
-				],
-			],
-			[
-				'3, 12, 3-3',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.FULL },
-					{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'four', width: WIDGET_WIDTHS.QUARTER },
-				],
-			],
-		]
-	)( 'should not resize widgets in a row that is smaller than 9 columns (%s)', async ( testName, widgets ) => {
-		createWidgets( registry, areaName, widgets );
-
-		const { container } = render( <WidgetAreaRenderer slug={ areaName } />, { registry } );
-		await waitFor( () => {
-			expect( container.firstChild.querySelectorAll( '.googlesitekit-widget-area-widgets' )[ 0 ] ).toMatchSnapshot();
-		} );
-	} );
-
-	it.each(
+		],
 		[
+			'3-3-3, 6 -> 4-4-4, 6',
 			[
-				'3-3-3-3',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'four', width: WIDGET_WIDTHS.QUARTER },
-				],
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'two',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'three',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'four',
+					width: WIDGET_WIDTHS.HALF,
+				},
 			],
+		],
+		[
+			'3-3-3, 12 -> 4-4-4, 12',
 			[
-				'6-6',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.HALF },
-					{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.HALF },
-				],
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'two',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'three',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'four',
+					width: WIDGET_WIDTHS.FULL,
+				},
 			],
+		],
+		[
+			'3-3-3, 12, 3-3-3 -> 4-4-4, 12, 4-4-4',
 			[
-				'3-6-3',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.HALF },
-					{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.QUARTER },
-				],
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'two',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'three',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'four',
+					width: WIDGET_WIDTHS.FULL,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'five',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'six',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'seven',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
 			],
-			[
-				'3-3-6',
-				[
-					{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.QUARTER },
-					{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.HALF },
-				],
-			],
-		]
-	)( 'should not resize widgets that fit into a 12-column grid (%s)', async ( testName, widgets ) => {
-		createWidgets( registry, areaName, widgets );
+		],
+	] )(
+		'should resize widgets in a row that spans 9 columns to fill the full 12 columns (%s)',
+		async ( testName, widgets ) => {
+			createWidgets( registry, areaName, widgets );
 
-		const { container } = render( <WidgetAreaRenderer slug={ areaName } />, { registry } );
-		await waitFor( () => {
-			expect( container.firstChild.querySelectorAll( '.googlesitekit-widget-area-widgets' )[ 0 ] ).toMatchSnapshot();
-		} );
-	} );
+			const { container, waitForRegistry } = render(
+				<WidgetAreaRenderer slug={ areaName } />,
+				{ registry }
+			);
+
+			await waitForRegistry();
+
+			expect(
+				container.firstChild.querySelectorAll(
+					'.googlesitekit-widget-area-widgets'
+				)[ 0 ]
+			).toMatchSnapshot();
+		}
+	);
+
+	it.each( [
+		[
+			'3-3',
+			[
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'two',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+			],
+		],
+		[
+			'6',
+			[
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.HALF,
+				},
+			],
+		],
+		[
+			'3, 12, 3-3',
+			[
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'two',
+					width: WIDGET_WIDTHS.FULL,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'three',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'four',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+			],
+		],
+	] )(
+		'should not resize widgets in a row that is smaller than 9 columns (%s)',
+		async ( testName, widgets ) => {
+			createWidgets( registry, areaName, widgets );
+
+			const { container, waitForRegistry } = render(
+				<WidgetAreaRenderer slug={ areaName } />,
+				{ registry }
+			);
+
+			await waitForRegistry();
+
+			expect(
+				container.firstChild.querySelectorAll(
+					'.googlesitekit-widget-area-widgets'
+				)[ 0 ]
+			).toMatchSnapshot();
+		}
+	);
+
+	it.each( [
+		[
+			'3-3-3-3',
+			[
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'two',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'three',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'four',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+			],
+		],
+		[
+			'6-6',
+			[
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.HALF,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'two',
+					width: WIDGET_WIDTHS.HALF,
+				},
+			],
+		],
+		[
+			'3-6-3',
+			[
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'two',
+					width: WIDGET_WIDTHS.HALF,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'three',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+			],
+		],
+		[
+			'3-3-6',
+			[
+				{
+					Component: WidgetComponent,
+					slug: 'one',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'two',
+					width: WIDGET_WIDTHS.QUARTER,
+				},
+				{
+					Component: WidgetComponent,
+					slug: 'three',
+					width: WIDGET_WIDTHS.HALF,
+				},
+			],
+		],
+	] )(
+		'should not resize widgets that fit into a 12-column grid (%s)',
+		async ( testName, widgets ) => {
+			createWidgets( registry, areaName, widgets );
+
+			const { container, waitForRegistry } = render(
+				<WidgetAreaRenderer slug={ areaName } />,
+				{ registry }
+			);
+
+			await waitForRegistry();
+
+			expect(
+				container.firstChild.querySelectorAll(
+					'.googlesitekit-widget-area-widgets'
+				)[ 0 ]
+			).toMatchSnapshot();
+		}
+	);
 
 	it( 'should output boxes style without extra grid markup', async () => {
 		createWidgets( registry, areaName, [
-			{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.FULL },
-			{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.FULL },
-			{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.FULL },
+			{
+				Component: WidgetComponent,
+				slug: 'one',
+				width: WIDGET_WIDTHS.FULL,
+			},
+			{
+				Component: WidgetComponent,
+				slug: 'two',
+				width: WIDGET_WIDTHS.FULL,
+			},
+			{
+				Component: WidgetComponent,
+				slug: 'three',
+				width: WIDGET_WIDTHS.FULL,
+			},
 		] );
 
-		const { container } = render( <WidgetAreaRenderer slug={ areaName } style={ WIDGET_AREA_STYLES.BOXES } />, { registry } );
-		await waitFor( () => {
-			expect( container.firstChild.querySelectorAll( '.googlesitekit-widget-area-widgets > .mdc-layout-grid__inner > .mdc-layout-grid__cell.mdc-layout-grid__cell--span-12 > .mdc-layout-grid > .mdc-layout-grid__inner' ) ).toHaveLength( 0 );
-		} );
+		const { container, waitForRegistry } = render(
+			<WidgetAreaRenderer
+				slug={ areaName }
+				style={ WIDGET_AREA_STYLES.BOXES }
+			/>,
+			{ registry }
+		);
+
+		await waitForRegistry();
+
+		expect(
+			container.firstChild.querySelectorAll(
+				'.googlesitekit-widget-area-widgets > .mdc-layout-grid__inner > .mdc-layout-grid__cell.mdc-layout-grid__cell--span-12 > .mdc-layout-grid > .mdc-layout-grid__inner'
+			)
+		).toHaveLength( 0 );
 	} );
 
 	it( 'should output composite style with extra grid markup', async () => {
-		registry = createTestRegistryWithArea( areaName, WIDGET_AREA_STYLES.COMPOSITE );
-		registry.dispatch( CORE_SITE ).receiveGetConnection( { connected: true } );
+		registry = createTestRegistryWithArea(
+			areaName,
+			WIDGET_AREA_STYLES.COMPOSITE
+		);
+
+		provideModules( registry );
+
+		registry
+			.dispatch( CORE_SITE )
+			.receiveGetConnection( { connected: true } );
 		createWidgets( registry, areaName, [
-			{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.FULL },
-			{ Component: WidgetComponent, slug: 'two', width: WIDGET_WIDTHS.FULL },
-			{ Component: WidgetComponent, slug: 'three', width: WIDGET_WIDTHS.FULL },
+			{
+				Component: WidgetComponent,
+				slug: 'one',
+				width: WIDGET_WIDTHS.FULL,
+			},
+			{
+				Component: WidgetComponent,
+				slug: 'two',
+				width: WIDGET_WIDTHS.FULL,
+			},
+			{
+				Component: WidgetComponent,
+				slug: 'three',
+				width: WIDGET_WIDTHS.FULL,
+			},
 		] );
 
-		const { container } = render( <WidgetAreaRenderer slug={ areaName } />, { registry } );
-		await waitFor( () => {
-			expect( container.firstChild.querySelectorAll( '.googlesitekit-widget-area-widgets > .mdc-layout-grid__inner > .mdc-layout-grid__cell.mdc-layout-grid__cell--span-12 > .mdc-layout-grid > .mdc-layout-grid__inner' ) ).toHaveLength( 1 );
-		} );
+		const { container, waitForRegistry } = render(
+			<WidgetAreaRenderer slug={ areaName } />,
+			{ registry }
+		);
+
+		await waitForRegistry();
+
+		expect(
+			container.firstChild.querySelectorAll(
+				'.googlesitekit-widget-area-widgets > .mdc-layout-grid__inner > .mdc-layout-grid__cell.mdc-layout-grid__cell--span-12 > .mdc-layout-grid > .mdc-layout-grid__inner'
+			)
+		).toHaveLength( 1 );
 	} );
 
 	it( 'should render a hidden widget area when it has no active widget', async () => {
 		createWidgets( registry, areaName, [
-			{ Component: WidgetComponentEmpty, slug: 'empty', width: WIDGET_WIDTHS.HALF },
+			{
+				Component: WidgetComponentEmpty,
+				slug: 'empty',
+				width: WIDGET_WIDTHS.HALF,
+			},
 		] );
 
-		const widgets = registry.select( STORE_NAME ).getWidgets( areaName );
-		const { container } = render( <WidgetAreaRenderer slug={ areaName } />, { registry } );
+		const widgets = registry.select( CORE_WIDGETS ).getWidgets( areaName );
+		const { container, waitForRegistry } = render(
+			<WidgetAreaRenderer slug={ areaName } />,
+			{ registry }
+		);
 
-		await waitFor( () => {
-			expect( widgets ).toHaveLength( 1 );
-			expect( container.querySelectorAll( '.googlesitekit-widget-area' ) ).toHaveLength( 1 );
-			expect( container.querySelector( '.googlesitekit-widget-area' ) ).toHaveClass( 'googlesitekit-hidden' );
-		} );
+		await waitForRegistry();
+
+		expect( widgets ).toHaveLength( 1 );
+		expect(
+			container.querySelectorAll( '.googlesitekit-widget-area' )
+		).toMatchSnapshot();
+		expect(
+			container.querySelector( '.googlesitekit-widget-area' )
+		).toHaveClass( 'googlesitekit-hidden' );
 	} );
 
-	it( 'should not render the widget area title, subtitle and icon if there is only widget area', async () => {
+	it( 'should render the widget area title, subtitle and icon', async () => {
 		createWidgets( registry, areaName, [
-			{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.FULL },
+			{
+				Component: WidgetComponent,
+				slug: 'one',
+				width: WIDGET_WIDTHS.FULL,
+			},
 		] );
 
-		const widgets = registry.select( STORE_NAME ).getWidgets( areaName );
-		const { container } = render( <WidgetAreaRenderer slug={ areaName } totalAreas={ 1 } />, { registry } );
+		const widgets = registry.select( CORE_WIDGETS ).getWidgets( areaName );
+		const { container, waitForRegistry } = render(
+			<WidgetAreaRenderer slug={ areaName } />,
+			{ registry }
+		);
 
-		await waitFor( () => {
-			expect( widgets ).toHaveLength( 1 );
-			expect( container.firstChild.querySelectorAll( '.googlesitekit-widget-area-header' ) ).toHaveLength( 0 );
-		} );
+		await waitForRegistry();
+
+		expect( widgets ).toHaveLength( 1 );
+		expect(
+			container.firstChild.querySelectorAll(
+				'.googlesitekit-widget-area-header'
+			)
+		).toHaveLength( 1 );
 	} );
 
-	it( 'should render the widget area title, subtitle and icon if there is more than widget area', async () => {
-		createWidgets( registry, areaName, [
-			{ Component: WidgetComponent, slug: 'one', width: WIDGET_WIDTHS.FULL },
+	it( 'should combine multiple widgets in RecoverableModules state with the same metadata into a single widget', async () => {
+		provideModules( registry, [
+			{
+				slug: 'search-console',
+				recoverable: true,
+			},
 		] );
 
-		const widgets = registry.select( STORE_NAME ).getWidgets( areaName );
-		const { container } = render( <WidgetAreaRenderer slug={ areaName } totalAreas={ 3 } />, { registry } );
+		provideUserCapabilities( registry, {
+			[ PERMISSION_VIEW_DASHBOARD ]: true,
+			[ `${ PERMISSION_READ_SHARED_MODULE_DATA }::["search-console"]` ]: true,
+		} );
 
-		await waitFor( () => {
-			expect( widgets ).toHaveLength( 1 );
-			expect( container.firstChild.querySelectorAll( '.googlesitekit-widget-area-header' ) ).toHaveLength( 1 );
+		createWidgets( registry, areaName, [
+			{
+				Component: WidgetComponent,
+				slug: 'one',
+				modules: [ 'search-console' ],
+			},
+			{
+				Component: WidgetComponent,
+				slug: 'two',
+				modules: [ 'search-console' ],
+			},
+		] );
+
+		const { container, waitForRegistry } = render(
+			<WidgetAreaRenderer slug={ areaName } />,
+			{
+				registry,
+				viewContext: VIEW_CONTEXT_MAIN_DASHBOARD_VIEW_ONLY,
+			}
+		);
+
+		await waitForRegistry();
+
+		const visibleWidgetSelector =
+			'.googlesitekit-widget-area-widgets > .mdc-layout-grid__inner > .mdc-layout-grid__cell > .googlesitekit-widget';
+
+		// There should be a single visible widget.
+		expect(
+			container.firstChild.querySelectorAll( visibleWidgetSelector )
+		).toHaveLength( 1 );
+
+		// The visible widget should be rendered as the RecoverableModules component.
+		expect(
+			getByText(
+				container.firstChild.querySelector( visibleWidgetSelector ),
+				'Search Console data was previously shared by an admin who no longer has access. Please contact another admin to restore it.'
+			)
+		).toBeInTheDocument();
+
+		// There should also be a hidden widget.
+		expect(
+			container.firstChild.querySelectorAll(
+				'.googlesitekit-widget-area-widgets .googlesitekit-hidden .googlesitekit-widget'
+			)
+		).toHaveLength( 1 );
+
+		expect(
+			container.firstChild.querySelector(
+				'.googlesitekit-widget-area-widgets'
+			)
+		).toMatchSnapshot();
+	} );
+
+	describe( 'Error handling', () => {
+		const mockTrackEvent = jest.spyOn( tracking, 'trackEvent' );
+		mockTrackEvent.mockImplementation( () => Promise.resolve() );
+
+		it( 'should display the error using `WidgetErrorHandler` component within a widget', async () => {
+			createWidgets( registry, areaName, [
+				{
+					Component: WidgetComponentErrored,
+					modules: 'search-console',
+					slug: 'one',
+					width: WIDGET_WIDTHS.FULL,
+				},
+			] );
+
+			const { container, waitForRegistry } = render(
+				<WidgetAreaRenderer slug={ areaName } />,
+				{ registry, viewContext: VIEW_CONTEXT_MAIN_DASHBOARD }
+			);
+
+			await waitForRegistry();
+
+			expect( container.firstChild ).toHaveTextContent(
+				'Error in Widget'
+			);
+			expect( container.firstChild ).toHaveTextContent(
+				'An error prevented this Widget'
+			);
+
+			expect( console ).toHaveErrored();
+		} );
+
+		it( 'should display other widgets when there is error in one of the widgets', async () => {
+			createWidgets( registry, areaName, [
+				{
+					Component: WidgetComponent,
+					modules: 'search-console',
+					slug: 'one',
+					width: WIDGET_WIDTHS.FULL,
+				},
+				{
+					Component: WidgetComponentErrored,
+					modules: 'search-console',
+					slug: 'two',
+					width: WIDGET_WIDTHS.FULL,
+				},
+				{
+					Component() {
+						return <div>AdSense is here</div>;
+					},
+					modules: 'adsense',
+					slug: 'three',
+					width: WIDGET_WIDTHS.FULL,
+				},
+			] );
+
+			const { container, waitForRegistry } = render(
+				<WidgetAreaRenderer slug={ areaName } />,
+				{ registry, viewContext: VIEW_CONTEXT_MAIN_DASHBOARD }
+			);
+
+			await waitForRegistry();
+
+			expect( container.firstChild ).toHaveTextContent(
+				'Error in Widget'
+			);
+
+			expect(
+				container.firstChild.querySelectorAll( '.googlesitekit-widget' )
+			).toHaveLength( 2 );
+
+			expect( container.firstChild ).toHaveTextContent(
+				'AdSense is here'
+			);
+
+			expect( console ).toHaveErrored();
+		} );
+
+		it( 'should track the error event', async () => {
+			createWidgets( registry, areaName, [
+				{
+					Component: WidgetComponentErrored,
+					modules: 'search-console',
+					slug: 'one',
+					width: WIDGET_WIDTHS.FULL,
+				},
+			] );
+
+			const { waitForRegistry } = render(
+				<WidgetAreaRenderer slug={ areaName } />,
+				{ registry, viewContext: VIEW_CONTEXT_MAIN_DASHBOARD }
+			);
+
+			await waitForRegistry();
+
+			expect( mockTrackEvent ).toHaveBeenCalled();
+
+			expect( console ).toHaveErrored();
 		} );
 	} );
 } );

@@ -24,13 +24,11 @@ import { addQueryArgs } from '@wordpress/url';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import { STORE_NAME } from './constants';
+import { createRegistrySelector } from 'googlesitekit-data';
+import { MODULES_SEARCH_CONSOLE } from './constants';
 import { CORE_USER } from '../../../googlesitekit/datastore/user/constants';
 import { CORE_SITE } from '../../../googlesitekit/datastore/site/constants';
 import { untrailingslashit } from '../../../util';
-
-const { createRegistrySelector } = Data;
 
 export const selectors = {
 	/**
@@ -44,19 +42,30 @@ export const selectors = {
 	 * @param {Object} [args.query] Object of query params to be added to the URL.
 	 * @return {string} The URL to the service.
 	 */
-	getServiceURL: createRegistrySelector( ( select ) => ( state, { path, query } = {} ) => {
-		const userEmail = select( CORE_USER ).getEmail();
-		if ( userEmail === undefined ) {
-			return undefined;
-		}
-		const baseURI = 'https://search.google.com/search-console';
-		const queryArgs = { ...query, authuser: userEmail };
-		if ( path ) {
-			const sanitizedPath = `/${ path.replace( /^\//, '' ) }`;
-			return addQueryArgs( `${ baseURI }${ sanitizedPath }`, queryArgs );
-		}
-		return addQueryArgs( baseURI, queryArgs );
-	} ),
+	getServiceURL: createRegistrySelector(
+		( select ) =>
+			( state, { path, query } = {} ) => {
+				let serviceURL = 'https://search.google.com/search-console';
+
+				if ( path ) {
+					const sanitizedPath = `/${ path.replace( /^\//, '' ) }`;
+					serviceURL = `${ serviceURL }${ sanitizedPath }`;
+				}
+
+				if ( query ) {
+					serviceURL = addQueryArgs( serviceURL, query );
+				}
+
+				const accountChooserBaseURI =
+					select( CORE_USER ).getAccountChooserURL( serviceURL );
+
+				if ( accountChooserBaseURI === undefined ) {
+					return undefined;
+				}
+
+				return accountChooserBaseURI;
+			}
+	),
 
 	/**
 	 * Gets a URL to the report on the service.
@@ -68,24 +77,51 @@ export const selectors = {
 	 * @param {string} [reportArgs.page] Page URL expression for scoping results.
 	 * @return {string} The URL to the service.
 	 */
-	getServiceReportURL: createRegistrySelector( ( select ) => ( state, reportArgs = {} ) => {
-		const propertyID = select( STORE_NAME ).getPropertyID();
-		const isDomainProperty = selectors.isDomainProperty( state );
-		const referenceSiteURL = select( CORE_SITE ).getReferenceSiteURL();
-		const {
-			page = isDomainProperty ? `*${ untrailingslashit( referenceSiteURL ) }` : undefined,
-			...args
-		} = reportArgs;
+	getServiceReportURL: createRegistrySelector(
+		( select ) =>
+			( state, reportArgs = {} ) => {
+				const propertyID = select(
+					MODULES_SEARCH_CONSOLE
+				).getPropertyID();
+				const isDomainProperty = selectors.isDomainProperty( state );
+				const referenceSiteURL =
+					select( CORE_SITE ).getReferenceSiteURL();
+				const {
+					page = isDomainProperty
+						? `*${ untrailingslashit( referenceSiteURL ) }`
+						: undefined,
+					...args
+				} = reportArgs;
 
-		const path = '/performance/search-analytics';
-		const query = {
-			page,
-			...args,
-			resource_id: propertyID,
-		};
+				const path = '/performance/search-analytics';
+				const query = {
+					page,
+					...args,
+					resource_id: propertyID,
+				};
 
-		return selectors.getServiceURL( state, { path, query } );
-	} ),
+				return selectors.getServiceURL( state, { path, query } );
+			}
+	),
+
+	/**
+	 * Gets an entity access URL on the service.
+	 *
+	 * @since 1.83.0
+	 *
+	 * @return {string} The entity access URL to the service.
+	 */
+	getServiceEntityAccessURL: createRegistrySelector(
+		( select ) => ( state ) => {
+			const propertyID = select( MODULES_SEARCH_CONSOLE ).getPropertyID();
+
+			const query = {
+				resource_id: propertyID,
+			};
+
+			return selectors.getServiceURL( state, { query } );
+		}
+	),
 
 	/**
 	 * Checks whether the Search Console property is a domain property.
@@ -95,7 +131,7 @@ export const selectors = {
 	 * @return {boolean} True if the propertyID is a search console domain property, otherwise false.
 	 */
 	isDomainProperty: createRegistrySelector( ( select ) => () => {
-		const domain = select( STORE_NAME ).getPropertyID();
+		const domain = select( MODULES_SEARCH_CONSOLE ).getPropertyID();
 
 		return domain && domain.startsWith( 'sc-domain:' );
 	} ),

@@ -27,16 +27,19 @@ import invariant from 'invariant';
 import {
 	getPreviousDate,
 	getDateString,
-	getPreviousWeekDate,
 	isValidDateRange,
 	isValidDateString,
 	INVALID_DATE_RANGE_ERROR,
 	INVALID_DATE_STRING_ERROR,
-} from '../../../util/date-range';
+} from '../../../util';
 
 export const initialState = {
 	dateRange: 'last-28-days',
-	referenceDate: getDateString( new Date() ),
+	// This is where we actually _set_ the reference date (which should
+	// have a default value of the current date).
+	//
+	// Using `new Date()` here is appropriate.
+	referenceDate: getDateString( new Date() ), // eslint-disable-line sitekit/no-direct-date
 };
 
 /**
@@ -147,15 +150,23 @@ export const selectors = {
 	 * @param {boolean} [options.compare]       Set to true if date ranges to compare should be included. Default is: false.
 	 * @param {number}  [options.offsetDays]    Number of days to offset. Default is: 0.
 	 * @param {string}  [options.referenceDate] Used for testing to set a static date. Default is the datastore's reference date.
-	 * @param {boolean} [options.weekDayAlign]  Set to true if the compared date range should be aligned for the weekdays. Default is: false.
 	 * @return {DateRangeReturnObj}             Object containing dates for date ranges.
 	 */
-	getDateRangeDates( state, {
-		compare = false,
-		offsetDays = 0,
-		referenceDate = state.referenceDate,
-		weekDayAlign = false,
-	} = {} ) {
+	getDateRangeDates(
+		state,
+		{
+			compare = false,
+			offsetDays,
+			referenceDate = state.referenceDate,
+		} = {}
+	) {
+		if ( offsetDays === undefined ) {
+			global.console.warn(
+				'getDateRangeDates was called without offsetDays'
+			);
+			offsetDays = 0;
+		}
+
 		const dateRange = selectors.getDateRange( state );
 		const endDate = getPreviousDate( referenceDate, offsetDays );
 		const matches = dateRange.match( '-(.*)-' );
@@ -164,10 +175,11 @@ export const selectors = {
 		const dates = { startDate, endDate };
 
 		if ( compare ) {
-			const compareEndDate = weekDayAlign
-				? getPreviousWeekDate( endDate, numberOfDays )
-				: getPreviousDate( startDate, 1 );
-			const compareStartDate = getPreviousDate( compareEndDate, numberOfDays - 1 );
+			const compareEndDate = getPreviousDate( startDate, 1 );
+			const compareStartDate = getPreviousDate(
+				compareEndDate,
+				numberOfDays - 1
+			);
 			dates.compareStartDate = compareStartDate;
 			dates.compareEndDate = compareEndDate;
 		}

@@ -31,36 +31,53 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
+import { useSelect, useDispatch } from 'googlesitekit-data';
+import { Checkbox } from 'googlesitekit-components';
 import { CORE_USER } from '../googlesitekit/datastore/user/constants';
 import { toggleTracking, trackEvent } from '../util/tracking';
-import Checkbox from './Checkbox';
 import Link from './Link';
-const { useSelect, useDispatch } = Data;
+import useViewContext from '../hooks/useViewContext';
 
-export default function OptIn( { id, name, className, optinAction } ) {
-	const enabled = useSelect( ( select ) => select( CORE_USER ).isTrackingEnabled() );
-	const saving = useSelect( ( select ) => select( CORE_USER ).isSavingTrackingEnabled() );
-	const error = useSelect( ( select ) => select( CORE_USER ).getErrorForAction( 'setTrackingEnabled', [ ! enabled ] ) );
+export default function OptIn( {
+	id = 'googlesitekit-opt-in',
+	name = 'optIn',
+	className,
+	trackEventCategory,
+	alignLeftCheckbox = false,
+} ) {
+	const enabled = useSelect( ( select ) =>
+		select( CORE_USER ).isTrackingEnabled()
+	);
+	const saving = useSelect( ( select ) =>
+		select( CORE_USER ).isSavingTrackingEnabled()
+	);
+	const error = useSelect( ( select ) =>
+		select( CORE_USER ).getErrorForAction( 'setTrackingEnabled', [
+			! enabled,
+		] )
+	);
 
 	const { setTrackingEnabled } = useDispatch( CORE_USER );
-	const handleOptIn = useCallback( async ( e ) => {
-		const {
-			response,
-			error: responseError,
-		} = await setTrackingEnabled( !! e.target.checked );
+	const viewContext = useViewContext();
 
-		if ( ! responseError ) {
-			toggleTracking( response.enabled );
-			if ( response.enabled ) {
-				trackEvent( 'tracking_plugin', optinAction );
+	const handleOptIn = useCallback(
+		async ( e ) => {
+			const { response, error: responseError } = await setTrackingEnabled(
+				!! e.target.checked
+			);
+
+			if ( ! responseError ) {
+				toggleTracking( response.enabled );
+				if ( response.enabled ) {
+					trackEvent(
+						trackEventCategory || viewContext,
+						'tracking_optin'
+					);
+				}
 			}
-		}
-	}, [ optinAction, setTrackingEnabled ] );
-
-	if ( enabled === undefined ) {
-		return null;
-	}
+		},
+		[ setTrackingEnabled, trackEventCategory, viewContext ]
+	);
 
 	return (
 		<div className={ classnames( 'googlesitekit-opt-in', className ) }>
@@ -71,22 +88,25 @@ export default function OptIn( { id, name, className, optinAction } ) {
 				checked={ enabled }
 				disabled={ saving }
 				onChange={ handleOptIn }
+				loading={ enabled === undefined }
+				alignLeft={ alignLeftCheckbox }
 			>
-				<span>{ __( 'Help us improve Site Kit by sharing anonymous usage data.', 'google-site-kit' ) }{ ' ' }</span>
-				<span>
-					{ createInterpolateElement(
-						__( 'All collected data is treated in accordance with the <a>Google Privacy Policy.</a>', 'google-site-kit' ),
-						{
-							a: <Link
+				{ createInterpolateElement(
+					__(
+						'<span>Help us improve Site Kit by sharing anonymous usage data.</span> <span>All collected data is treated in accordance with the <a>Google Privacy Policy.</a></span>',
+						'google-site-kit'
+					),
+					{
+						a: (
+							<Link
 								key="link"
-								href={ 'https://policies.google.com/privacy' }
+								href="https://policies.google.com/privacy"
 								external
-								inherit
-							/>,
-						}
-					)
+							/>
+						),
+						span: <span />,
 					}
-				</span>
+				) }
 			</Checkbox>
 
 			{ error?.message && (
@@ -102,10 +122,6 @@ OptIn.propTypes = {
 	id: PropTypes.string,
 	name: PropTypes.string,
 	className: PropTypes.string,
-	optinAction: PropTypes.string,
-};
-
-OptIn.defaultProps = {
-	id: 'googlesitekit-opt-in',
-	name: 'optIn',
+	trackEventCategory: PropTypes.string,
+	alignLeftCheckbox: PropTypes.bool,
 };

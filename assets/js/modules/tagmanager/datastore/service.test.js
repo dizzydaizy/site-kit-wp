@@ -20,12 +20,10 @@
  *
  * Internal dependencies
  */
-import {
-	createTestRegistry,
-	unsubscribeFromAll,
-} from '../../../../../tests/js/utils';
-import { STORE_NAME } from './constants';
+import { createTestRegistry } from '../../../../../tests/js/utils';
+import { MODULES_TAGMANAGER } from './constants';
 import { CORE_USER } from '../../../googlesitekit/datastore/user/constants';
+import { decodeServiceURL } from '../../../../../tests/js/mock-accountChooserURL-utils';
 
 describe( 'module/tagmanager service store', () => {
 	const userData = {
@@ -43,36 +41,54 @@ describe( 'module/tagmanager service store', () => {
 		registry.dispatch( CORE_USER ).receiveUserInfo( userData );
 	} );
 
-	afterAll( () => {
-		unsubscribeFromAll( registry );
-	} );
-
 	describe( 'selectors', () => {
 		describe( 'getServiceURL', () => {
-			it( 'retrieves the correct URL with no arguments', async () => {
-				const serviceURL = registry.select( STORE_NAME ).getServiceURL();
-				expect( serviceURL ).toBe( `${ baseURI }?authuser=${ encodeURIComponent( userData.email ) }` );
+			it( 'retrieves the correct URL with no arguments', () => {
+				const serviceURL = registry
+					.select( MODULES_TAGMANAGER )
+					.getServiceURL();
+
+				expect( serviceURL ).toMatchInlineSnapshot(
+					'"https://accounts.google.com/accountchooser?continue=https%3A%2F%2Ftagmanager.google.com%2F&Email=admin%40example.com"'
+				);
 			} );
 
 			it( 'adds the path parameter', () => {
-				const expectedURL = `${ baseURI }?authuser=${ encodeURIComponent( userData.email ) }#/test/path/to/deeplink`;
-				const serviceURLNoSlashes = registry.select( STORE_NAME ).getServiceURL( { path: 'test/path/to/deeplink' } );
-				expect( serviceURLNoSlashes ).toEqual( expectedURL );
-				const serviceURLWithLeadingSlash = registry.select( STORE_NAME ).getServiceURL( { path: '/test/path/to/deeplink' } );
-				expect( serviceURLWithLeadingSlash ).toEqual( expectedURL );
+				const serviceURLNoSlashes = registry
+					.select( MODULES_TAGMANAGER )
+					.getServiceURL( { path: 'test/path/to/deeplink' } );
+
+				expect( serviceURLNoSlashes ).toMatchInlineSnapshot(
+					'"https://accounts.google.com/accountchooser?continue=https%3A%2F%2Ftagmanager.google.com%2F%23%2Ftest%2Fpath%2Fto%2Fdeeplink&Email=admin%40example.com"'
+				);
+
+				const serviceURLWithLeadingSlash = registry
+					.select( MODULES_TAGMANAGER )
+					.getServiceURL( { path: '/test/path/to/deeplink' } );
+
+				expect( serviceURLWithLeadingSlash ).toMatchInlineSnapshot(
+					'"https://accounts.google.com/accountchooser?continue=https%3A%2F%2Ftagmanager.google.com%2F%23%2Ftest%2Fpath%2Fto%2Fdeeplink&Email=admin%40example.com"'
+				);
 			} );
 
-			it( 'adds query args', async () => {
+			it( 'adds query args', () => {
 				const path = '/test/path/to/deeplink';
 				const query = {
 					authuser: userData.email,
 					param1: '1',
 					param2: '2',
 				};
-				const serviceURL = registry.select( STORE_NAME ).getServiceURL( { path, query } );
-				expect( serviceURL.startsWith( baseURI ) ).toBe( true );
-				expect( serviceURL.endsWith( `#${ path }` ) ).toBe( true );
-				expect( serviceURL ).toMatchQueryParameters( query );
+				const serviceURL = registry
+					.select( MODULES_TAGMANAGER )
+					.getServiceURL( { path, query } );
+
+				const decodedServiceURL = decodeServiceURL( serviceURL );
+
+				expect( decodedServiceURL.startsWith( baseURI ) ).toBe( true );
+				expect( decodedServiceURL.endsWith( `#${ path }` ) ).toBe(
+					true
+				);
+				expect( decodedServiceURL ).toMatchQueryParameters( query );
 			} );
 		} );
 	} );

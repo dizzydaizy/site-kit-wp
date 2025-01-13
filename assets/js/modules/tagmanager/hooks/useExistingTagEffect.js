@@ -19,35 +19,37 @@
 /**
  * WordPress dependencies
  */
-import { useEffect } from '@wordpress/element';
+import { useEffect, useRef } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import { STORE_NAME } from '../datastore/constants';
-const { useSelect, useDispatch } = Data;
+import { useSelect, useDispatch } from 'googlesitekit-data';
+import { MODULES_TAGMANAGER } from '../datastore/constants';
 
 export default function useExistingTagEffect() {
-	const hasExistingTag = useSelect( ( select ) => select( STORE_NAME ).hasExistingTag() );
-	const existingTag = useSelect( ( select ) => select( STORE_NAME ).getExistingTag() );
-	const existingTagPermission = useSelect( ( select ) => select( STORE_NAME ).getTagPermission( existingTag ) );
-	const hasExistingTagPermission = useSelect( ( select ) => select( STORE_NAME ).hasExistingTagPermission() );
-	// Set the accountID and containerID if there is an existing tag.
-	const { selectAccount, selectContainerByID } = useDispatch( STORE_NAME );
+	const existingTag = useSelect( ( select ) =>
+		select( MODULES_TAGMANAGER ).getExistingTag()
+	);
+	const containerID = useSelect( ( select ) =>
+		select( MODULES_TAGMANAGER ).getPrimaryContainerID()
+	);
+
+	const skipEffect = useRef( true );
+
+	const { setUseSnippet } = useDispatch( MODULES_TAGMANAGER );
+
 	useEffect( () => {
-		( async () => {
-			if ( hasExistingTag && hasExistingTagPermission ) {
-				await selectAccount( existingTagPermission.accountID );
-				await selectContainerByID( existingTag );
+		if ( existingTag && containerID !== undefined ) {
+			if ( containerID === '' || skipEffect.current ) {
+				skipEffect.current = false;
+				return;
 			}
-		} )();
-	}, [
-		hasExistingTag,
-		existingTag,
-		hasExistingTagPermission,
-		existingTagPermission,
-		selectAccount,
-		selectContainerByID,
-	] );
+			if ( existingTag === containerID ) {
+				setUseSnippet( false );
+			} else {
+				setUseSnippet( true );
+			}
+		}
+	}, [ containerID, existingTag, setUseSnippet ] );
 }

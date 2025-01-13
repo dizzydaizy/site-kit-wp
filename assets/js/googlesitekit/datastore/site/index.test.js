@@ -19,9 +19,9 @@
 /**
  * Internal dependencies
  */
-import { createTestRegistry, unsubscribeFromAll } from 'tests/js/utils';
+import { createTestRegistry } from '../../../../../tests/js/utils';
 import { initialState } from './index';
-import { STORE_NAME } from './constants';
+import { CORE_SITE } from './constants';
 
 describe( 'core/site store', () => {
 	let registry;
@@ -29,11 +29,7 @@ describe( 'core/site store', () => {
 
 	beforeEach( () => {
 		registry = createTestRegistry();
-		store = registry.stores[ STORE_NAME ].store;
-	} );
-
-	afterEach( () => {
-		unsubscribeFromAll( registry );
+		store = registry.stores[ CORE_SITE ].store;
 	} );
 
 	describe( 'reducer', () => {

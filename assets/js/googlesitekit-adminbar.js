@@ -19,7 +19,7 @@
 /**
  * External dependencies
  */
-import once from 'lodash/once';
+import { once } from 'lodash';
 
 /**
  * WordPress dependencies
@@ -33,26 +33,39 @@ import { render } from '@wordpress/element';
 import { trackEvent } from './util';
 import Root from './components/Root';
 import AdminBarApp from './components/adminbar/AdminBarApp';
-import './modules';
+import {
+	VIEW_CONTEXT_ADMIN_BAR,
+	VIEW_CONTEXT_ADMIN_BAR_VIEW_ONLY,
+} from './googlesitekit/constants';
 
 // Initialize the whole adminbar app.
 const init = once( () => {
-	const renderTarget = document.getElementById( 'js-googlesitekit-adminbar-modules' );
+	const renderTarget = document.getElementById(
+		'js-googlesitekit-adminbar-modules'
+	);
 
 	if ( renderTarget ) {
+		const { viewOnly } = renderTarget.dataset;
+
+		const viewContext = viewOnly
+			? VIEW_CONTEXT_ADMIN_BAR_VIEW_ONLY
+			: VIEW_CONTEXT_ADMIN_BAR;
+
 		render(
-			<Root dataAPIContext="Adminbar">
+			<Root viewContext={ viewContext }>
 				<AdminBarApp />
 			</Root>,
 			renderTarget
 		);
 
-		trackEvent( 'admin_bar', 'page_stats_view' );
+		trackEvent( viewContext, 'view_urlsummary' );
 	}
 } );
 
 domReady( () => {
-	const siteKitMenuItemEl = document.getElementById( 'wp-admin-bar-google-site-kit' );
+	const siteKitMenuItemEl = document.getElementById(
+		'wp-admin-bar-google-site-kit'
+	);
 
 	if ( ! siteKitMenuItemEl ) {
 		return;

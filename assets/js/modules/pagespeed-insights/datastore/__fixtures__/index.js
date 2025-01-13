@@ -19,19 +19,47 @@
 /**
  * External dependencies
  */
-import omit from 'lodash/omit';
+import { omit } from 'lodash';
 
 /**
  * Internal dependencies
  */
 import { default as pagespeedDesktop } from './pagespeed--desktop';
 import { default as pagespeedMobile } from './pagespeed--mobile';
-const pagespeedDesktopNoFieldData = omit( pagespeedDesktop, 'loadingExperience.metrics' );
-const pagespeedMobileNoFieldData = omit( pagespeedMobile, 'loadingExperience.metrics' );
-const pagespeedDesktopNoStackPacks = omit( pagespeedDesktop, 'lighthouseResult.stackPacks' );
-const pagespeedMobileNoStackPacks = omit( pagespeedMobile, 'lighthouseResult.stackPacks' );
-const pagespeedDesktopNoFieldDataNoStackPacks = omit( pagespeedDesktopNoFieldData, 'lighthouseResult.stackPacks' );
-const pagespeedMobileNoFieldDataNoStackPacks = omit( pagespeedMobileNoFieldData, 'lighthouseResult.stackPacks' );
+const pagespeedDesktopNoFieldData = omit(
+	pagespeedDesktop,
+	'loadingExperience.metrics'
+);
+const pagespeedMobileNoFieldData = omit(
+	pagespeedMobile,
+	'loadingExperience.metrics'
+);
+const pagespeedDesktopNoStackPacks = omit(
+	pagespeedDesktop,
+	'lighthouseResult.stackPacks'
+);
+const pagespeedMobileNoStackPacks = omit(
+	pagespeedMobile,
+	'lighthouseResult.stackPacks'
+);
+const pagespeedDesktopNoFieldDataNoStackPacks = omit(
+	pagespeedDesktopNoFieldData,
+	'lighthouseResult.stackPacks'
+);
+const pagespeedMobileNoFieldDataNoStackPacks = omit(
+	pagespeedMobileNoFieldData,
+	'lighthouseResult.stackPacks'
+);
+const pagespeedDesktopPartialFieldData = omit( pagespeedDesktop, [
+	'loadingExperience.metrics.LARGEST_CONTENTFUL_PAINT_MS',
+	'loadingExperience.metrics.CUMULATIVE_LAYOUT_SHIFT_SCORE',
+	'loadingExperience.metrics.FIRST_INPUT_DELAY_MS',
+] );
+const pagespeedMobilePartialFieldData = omit( pagespeedMobile, [
+	'loadingExperience.metrics.LARGEST_CONTENTFUL_PAINT_MS',
+	'loadingExperience.metrics.CUMULATIVE_LAYOUT_SHIFT_SCORE',
+	'loadingExperience.metrics.FIRST_INPUT_DELAY_MS',
+] );
 
 export {
 	pagespeedDesktop,
@@ -42,4 +70,6 @@ export {
 	pagespeedMobileNoFieldData,
 	pagespeedMobileNoStackPacks,
 	pagespeedMobileNoFieldDataNoStackPacks,
+	pagespeedDesktopPartialFieldData,
+	pagespeedMobilePartialFieldData,
 };

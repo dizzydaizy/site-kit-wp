@@ -43,7 +43,10 @@ export const getChartDifferenceArrow = ( difference, options = {} ) => {
 	const { invertColor = false } = options;
 
 	return renderToString(
-		<ChangeArrow direction={ difference > 0 ? 'up' : 'down' } invertColor={ invertColor } />
+		<ChangeArrow
+			direction={ difference > 0 ? 'up' : 'down' }
+			invertColor={ invertColor }
+		/>
 	);
 };
 
@@ -62,10 +65,36 @@ export const isSingleSlice = ( report ) => {
 
 	if (
 		report?.[ 0 ]?.data?.rows?.length === 1 ||
-		report?.[ 0 ]?.data?.rows?.[ 0 ]?.metrics?.[ 0 ]?.values?.[ 0 ] === report?.[ 0 ]?.data?.totals?.[0]?.values?.[ 0 ]
+		report?.[ 0 ]?.data?.rows?.[ 0 ]?.metrics?.[ 0 ]?.values?.[ 0 ] ===
+			report?.[ 0 ]?.data?.totals?.[ 0 ]?.values?.[ 0 ]
 	) {
 		return true;
 	}
 
 	return false;
+};
+
+/**
+ * Calculates difference between two chart values.
+ *
+ * @since 1.48.0
+ *
+ * @param {number} currentValue  Current chart value.
+ * @param {number} previousValue Previous chart value.
+ * @return {number} The difference.
+ */
+export const calculateDifferenceBetweenChartValues = (
+	currentValue,
+	previousValue
+) => {
+	if ( currentValue > 0 && previousValue > 0 ) {
+		return currentValue / previousValue - 1;
+	}
+	if ( currentValue > 0 ) {
+		return 1;
+	}
+	if ( previousValue > 0 ) {
+		return -1;
+	}
+	return 0;
 };

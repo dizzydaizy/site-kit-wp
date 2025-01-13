@@ -24,7 +24,7 @@ import invariant from 'invariant';
 /**
  * Internal dependencies
  */
-import { isValidDateString } from '../../../util/date-range/is-valid-date-string';
+import { isValidDateString } from '../../../util';
 
 /**
  * Generates an object with the appropriate structure to pass to report selectors.
@@ -39,10 +39,16 @@ import { isValidDateString } from '../../../util/date-range/is-valid-date-string
 export const generateDateRangeArgs = ( dates ) => {
 	invariant( dates, 'A dates object is required.' );
 	const { startDate, endDate } = dates;
-	invariant( isValidDateString( startDate ), 'A valid startDate is required.' );
+	invariant(
+		isValidDateString( startDate ),
+		'A valid startDate is required.'
+	);
 	invariant( isValidDateString( endDate ), 'A valid endDate is required.' );
 
 	return {
-		d: `${ startDate.replace( /-/g, '/' ) }-${ endDate.replace( /-/g, '/' ) }`,
+		d: `${ startDate.replace( /-/g, '/' ) }-${ endDate.replace(
+			/-/g,
+			'/'
+		) }`,
 	};
 };

@@ -20,22 +20,67 @@
  * Internal dependencies
  */
 import Modules from 'googlesitekit-modules';
-import { STORE_NAME } from './constants';
-import { submitChanges, validateCanSubmitChanges } from './settings';
+import { MODULES_ANALYTICS_4 } from './constants';
+import {
+	submitChanges,
+	validateCanSubmitChanges,
+	rollbackChanges,
+	validateHaveSettingsChanged,
+} from './settings';
+import { convertDateStringToUNIXTimestamp } from '../../../util';
 
 const baseModuleStore = Modules.createModuleStore( 'analytics-4', {
-	storeName: STORE_NAME,
+	ownedSettingsSlugs: [
+		'accountID',
+		'propertyID',
+		'webDataStreamID',
+		'measurementID',
+		'googleTagID',
+		'googleTagAccountID',
+		'googleTagContainerID',
+	],
+	storeName: MODULES_ANALYTICS_4,
 	settingSlugs: [
-		// TODO: These can be uncommented when Analytics and Analytics 4 modules are officially separated.
-		// 'accountID',
-		// 'adsConversionID',
+		'accountID',
+		'adsConversionID',
+		'adSenseLinked',
+		'adSenseLinkedLastSyncedAt',
 		'propertyID',
 		'webDataStreamID',
 		'measurementID',
 		'useSnippet',
+		'ownerID',
+		'googleTagID',
+		'googleTagAccountID',
+		'googleTagContainerID',
+		'googleTagContainerDestinationIDs',
+		'googleTagLastSyncedAtMs',
+		'availableCustomDimensions',
+		'propertyCreateTime',
+		'trackingDisabled',
+		'adsConversionIDMigratedAtMs',
+		'adsLinked',
+		'adsLinkedLastSyncedAt',
+		'availableAudiences',
+		'availableAudiencesLastSyncedAt',
+		'audienceSegmentationSetupCompletedBy',
+		'detectedEvents',
+		'newConversionEventsLastUpdateAt',
+		'lostConversionEventsLastUpdateAt',
 	],
 	submitChanges,
+	rollbackChanges,
 	validateCanSubmitChanges,
+	validateHaveSettingsChanged,
 } );
+
+const originalSetPropertyCreateTime =
+	baseModuleStore.actions.setPropertyCreateTime;
+
+baseModuleStore.actions.setPropertyCreateTime = ( value ) => {
+	return originalSetPropertyCreateTime(
+		convertDateStringToUNIXTimestamp( value )
+	);
+};
 
 export default baseModuleStore;

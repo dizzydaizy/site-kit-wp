@@ -20,8 +20,8 @@
  * Internal dependencies
  */
 import API from 'googlesitekit-api';
-import Data from 'googlesitekit-data';
-import { STORE_NAME } from './constants';
+import { commonActions, combineStores } from 'googlesitekit-data';
+import { MODULES_ADSENSE } from './constants';
 import { createFetchStore } from '../../../googlesitekit/data/create-fetch-store';
 import { actions as errorStoreActions } from '../../../googlesitekit/data/create-error-store';
 
@@ -49,7 +49,7 @@ const baseInitialState = {
 
 const baseActions = {
 	*resetAccounts() {
-		const { dispatch } = yield Data.commonActions.getRegistry();
+		const { dispatch } = yield commonActions.getRegistry();
 
 		yield {
 			payload: {},
@@ -58,8 +58,9 @@ const baseActions = {
 
 		yield errorStoreActions.clearErrors( 'getAccounts' );
 
-		return dispatch( STORE_NAME )
-			.invalidateResolutionForStoreSelector( 'getAccounts' );
+		return dispatch( MODULES_ADSENSE ).invalidateResolutionForStoreSelector(
+			'getAccounts'
+		);
 	},
 };
 
@@ -97,8 +98,10 @@ const baseReducer = ( state, { type } ) => {
 
 const baseResolvers = {
 	*getAccounts() {
-		const registry = yield Data.commonActions.getRegistry();
-		const existingAccounts = registry.select( STORE_NAME ).getAccounts();
+		const registry = yield commonActions.getRegistry();
+		const existingAccounts = registry
+			.select( MODULES_ADSENSE )
+			.getAccounts();
 
 		// If there are already accounts loaded in state, consider it fulfilled
 		// and don't make an API request.
@@ -126,16 +129,13 @@ const baseSelectors = {
 	},
 };
 
-const store = Data.combineStores(
-	fetchGetAccountsStore,
-	{
-		initialState: baseInitialState,
-		actions: baseActions,
-		reducer: baseReducer,
-		resolvers: baseResolvers,
-		selectors: baseSelectors,
-	}
-);
+const store = combineStores( fetchGetAccountsStore, {
+	initialState: baseInitialState,
+	actions: baseActions,
+	reducer: baseReducer,
+	resolvers: baseResolvers,
+	selectors: baseSelectors,
+} );
 
 export const initialState = store.initialState;
 export const actions = store.actions;

@@ -32,61 +32,62 @@ import {
 } from '../tests/js/utils';
 import Widget from '../assets/js/googlesitekit/widgets/components/Widget';
 import WidgetAreaRenderer from '../assets/js/googlesitekit/widgets/components/WidgetAreaRenderer';
-import { STORE_NAME, WIDGET_WIDTHS, WIDGET_AREA_STYLES } from '../assets/js/googlesitekit/widgets/datastore/constants';
+import { Cell, Grid, Row } from '../assets/js/material-components';
+import {
+	CORE_WIDGETS,
+	WIDGET_WIDTHS,
+	WIDGET_AREA_STYLES,
+} from '../assets/js/googlesitekit/widgets/datastore/constants';
 const { HALF, QUARTER, FULL } = WIDGET_WIDTHS;
 
 function BoxesWidgets( { children } ) {
 	return (
-		<div className="mdc-layout-grid googlesitekit-widget-area googlesitekit-widget-area--boxes">
-			<div className="googlesitekit-widget-area-widgets">
-				<div className="mdc-layout-grid__inner">
-					{ children }
-				</div>
-			</div>
-		</div>
+		<Grid className="googlesitekit-widget-area googlesitekit-widget-area--boxes">
+			<Row className="googlesitekit-widget-area-widgets">
+				{ children }
+			</Row>
+		</Grid>
 	);
 }
 
 function CompositeWidgets( { children } ) {
 	return (
-		<div className="mdc-layout-grid googlesitekit-widget-area googlesitekit-widget-area--composite">
-			<div className="googlesitekit-widget-area-widgets">
-				<div className="mdc-layout-grid__inner">
-					<div className="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
-						<div className="mdc-layout-grid">
-							<div className="mdc-layout-grid__inner">
-								{ children }
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
+		<Grid className="googlesitekit-widget-area googlesitekit-widget-area--composite">
+			<Row className="googlesitekit-widget-area-widgets">
+				<Cell size={ 12 }>
+					<Grid>
+						<Row>{ children }</Row>
+					</Grid>
+				</Cell>
+			</Row>
+		</Grid>
 	);
 }
 
 function QuarterWidgetInGrid( props ) {
 	return (
-		<div className="mdc-layout-grid__cell mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+		<Cell mdSize={ 4 } lgSize={ 3 }>
 			<Widget { ...props } />
-		</div>
+		</Cell>
 	);
 }
 
 function getRegularWidget( textContent ) {
-	return () => <div>{ textContent || 'Regular Widget' }</div>;
+	return function () {
+		return <div>{ textContent || 'Regular Widget' }</div>;
+	};
 }
 
 function getReportZeroWidget( moduleSlug ) {
-	return ( { WidgetReportZero } ) => <WidgetReportZero moduleSlug={ moduleSlug } />;
+	return function ( { WidgetReportZero } ) {
+		return <WidgetReportZero moduleSlug={ moduleSlug } />;
+	};
 }
 
-function getActivateModuleCTAWidget( moduleSlug ) {
-	return ( { WidgetActivateModuleCTA } ) => <WidgetActivateModuleCTA moduleSlug={ moduleSlug } />;
-}
-
-function getCompleteModuleActivationCTAWidget( moduleSlug ) {
-	return ( { WidgetCompleteModuleActivationCTA } ) => <WidgetCompleteModuleActivationCTA moduleSlug={ moduleSlug } />;
+function getRecoverableModulesWidget( moduleSlugs ) {
+	return function ( { WidgetRecoverableModules } ) {
+		return <WidgetRecoverableModules moduleSlugs={ moduleSlugs } />;
+	};
 }
 
 function createWidgetAreasFromWidths( registry, ...widgetAreaWidgetWidths ) {
@@ -97,15 +98,13 @@ function createWidgetAreasFromWidths( registry, ...widgetAreaWidgetWidths ) {
 }
 
 function createWidgetAreas( registry, ...widgetAreaWidgets ) {
-	return widgetAreaWidgets.map( ( widgets, i ) => createWidgetArea(
-		registry,
-		`area${ i + 1 }`,
-		widgets,
-	) );
+	return widgetAreaWidgets.map( ( widgets, i ) =>
+		createWidgetArea( registry, `area${ i + 1 }`, widgets )
+	);
 }
 
 function createWidgetArea( registry, areaName, widgets ) {
-	registry.dispatch( STORE_NAME ).registerWidgetArea( areaName, {
+	registry.dispatch( CORE_WIDGETS ).registerWidgetArea( areaName, {
 		title: areaName.toUpperCase(),
 		subtitle: `${ areaName } subtitle`,
 		style: WIDGET_AREA_STYLES.BOXES,
@@ -115,16 +114,19 @@ function createWidgetArea( registry, areaName, widgets ) {
 		const widgetSlug = slug || `${ areaName }-widget${ i + 1 }`;
 		const componentFallback = () => (
 			<div>
-				{ ( Array.isArray( width ) ? width.join( ' / ' ) : width ).toUpperCase() }
+				{ ( Array.isArray( width )
+					? width.join( ' / ' )
+					: width
+				).toUpperCase() }
 			</div>
 		);
 
-		registry.dispatch( STORE_NAME ).registerWidget( widgetSlug, {
+		registry.dispatch( CORE_WIDGETS ).registerWidget( widgetSlug, {
 			Component: Component || componentFallback,
 			width,
 		} );
 
-		registry.dispatch( STORE_NAME ).assignWidget( widgetSlug, areaName );
+		registry.dispatch( CORE_WIDGETS ).assignWidget( widgetSlug, areaName );
 	} );
 
 	return <WidgetAreaRenderer slug={ areaName } key={ areaName } />;
@@ -229,122 +231,126 @@ storiesOf( 'Global/Widgets', module )
 	) );
 
 storiesOf( 'Global/Widgets/Widget Area', module )
-	.add( 'Regular sizes', ( args, { registry } ) => (
-		createWidgetAreasFromWidths(
-			registry,
-			[ QUARTER, QUARTER, QUARTER, QUARTER ],
-			[ HALF, QUARTER, QUARTER ],
-			[ QUARTER, HALF, QUARTER ],
-			[ QUARTER, QUARTER, HALF ],
-			[ HALF, HALF ],
-			[ FULL ],
-		)
-	), {
-		decorators: [
-			withRegistry,
-		],
-	} )
-	.add( 'Irregular sizes', ( args, { registry } ) => (
-		createWidgetAreasFromWidths(
-			registry,
-			[ QUARTER, QUARTER, QUARTER, HALF, QUARTER ],
-			[ QUARTER, QUARTER, HALF, [ QUARTER, FULL ] ],
-			[ HALF, [ QUARTER, HALF ], FULL ],
-			[ [ HALF, FULL ], QUARTER, QUARTER ],
-			[ QUARTER, [ FULL, HALF ], QUARTER ],
-			[ QUARTER, QUARTER, [ HALF, FULL ] ],
-		)
-	), {
-		decorators: [
-			withRegistry,
-		],
-	} )
-	.add( 'Special combination states', ( args, { registry } ) => (
-		createWidgetAreas(
-			registry,
-			[
-				{
-					Component: getRegularWidget(),
-					width: QUARTER,
-				},
-				{
-					Component: getReportZeroWidget( 'search-console' ),
-					width: QUARTER,
-				},
-				{
-					Component: getReportZeroWidget( 'analytics' ),
-					width: QUARTER,
-				},
-				{
-					Component: getActivateModuleCTAWidget( 'adsense' ),
-					width: QUARTER,
-				},
-			],
-			[
-				{
-					Component: getReportZeroWidget( 'search-console' ),
-					width: QUARTER,
-				},
-				{
-					Component: getReportZeroWidget( 'search-console' ),
-					width: QUARTER,
-				},
-				{
-					Component: getReportZeroWidget( 'analytics' ),
-					width: QUARTER,
-				},
-				{
-					Component: getReportZeroWidget( 'analytics' ),
-					width: QUARTER,
-				},
-			],
-			[
-				{
-					Component: getReportZeroWidget( 'search-console' ),
-					width: HALF,
-				},
-				{
-					Component: getActivateModuleCTAWidget( 'analytics' ),
-					width: HALF,
-				},
-				{
-					Component: getActivateModuleCTAWidget( 'analytics' ),
-					width: HALF,
-				},
-				{
-					Component: getActivateModuleCTAWidget( 'analytics' ),
-					width: HALF,
-				},
-			],
-			[
-				{
-					Component: getCompleteModuleActivationCTAWidget( 'search-console' ),
-					width: HALF,
-				},
-				{
-					Component: getCompleteModuleActivationCTAWidget( 'search-console' ),
-					width: HALF,
-				},
-				{
-					Component: getCompleteModuleActivationCTAWidget( 'search-console' ),
-					width: QUARTER,
-				},
-				{
-					Component: getCompleteModuleActivationCTAWidget( 'analytics' ),
-					width: QUARTER,
-				},
-				{
-					Component: getRegularWidget(),
-					width: QUARTER,
-				},
-				{
-					Component: getCompleteModuleActivationCTAWidget( 'analytics' ),
-					width: QUARTER,
-				},
-			],
-		)
-	), {
-		decorators: [
-			withRegistry,
-		],
-	} );
+	.add(
+		'Regular sizes',
+		( args, { registry } ) =>
+			createWidgetAreasFromWidths(
+				registry,
+				[ QUARTER, QUARTER, QUARTER, QUARTER ],
+				[ HALF, QUARTER, QUARTER ],
+				[ QUARTER, HALF, QUARTER ],
+				[ QUARTER, QUARTER, HALF ],
+				[ HALF, HALF ],
+				[ FULL ]
+			),
+		{
+			decorators: [ withRegistry ],
+		}
+	)
+	.add(
+		'Irregular sizes',
+		( args, { registry } ) =>
+			createWidgetAreasFromWidths(
+				registry,
+				[ QUARTER, QUARTER, QUARTER, HALF, QUARTER ],
+				[ QUARTER, QUARTER, HALF, [ QUARTER, FULL ] ],
+				[ HALF, [ QUARTER, HALF ], FULL ],
+				[ [ HALF, FULL ], QUARTER, QUARTER ],
+				[ QUARTER, [ FULL, HALF ], QUARTER ],
+				[ QUARTER, QUARTER, [ HALF, FULL ] ]
+			),
+		{
+			decorators: [ withRegistry ],
+		}
+	)
+	.add(
+		'Special combination states',
+		( args, { registry } ) =>
+			createWidgetAreas(
+				registry,
+				[
+					{
+						Component: getRegularWidget(),
+						width: QUARTER,
+					},
+					{
+						Component: getReportZeroWidget( 'search-console' ),
+						width: QUARTER,
+					},
+					{
+						Component: getReportZeroWidget( 'analytics-4' ),
+						width: QUARTER,
+					},
+					{
+						Component: getRecoverableModulesWidget( [
+							'analytics-4',
+						] ),
+						width: QUARTER,
+					},
+				],
+				[
+					{
+						Component: getReportZeroWidget( 'search-console' ),
+						width: QUARTER,
+					},
+					{
+						Component: getReportZeroWidget( 'search-console' ),
+						width: QUARTER,
+					},
+					{
+						Component: getReportZeroWidget( 'analytics-4' ),
+						width: QUARTER,
+					},
+				],
+				[
+					{
+						Component: getReportZeroWidget( 'search-console' ),
+						width: HALF,
+					},
+					{
+						Component: getReportZeroWidget( 'analytics-4' ),
+						width: HALF,
+					},
+					{
+						Component: getRecoverableModulesWidget( [
+							'analytics-4',
+							'search-console',
+						] ),
+						width: FULL,
+					},
+				],
+				[
+					{
+						Component: getRegularWidget(),
+						width: FULL,
+					},
+					{
+						Component: getRegularWidget(),
+						width: HALF,
+					},
+					{
+						Component: getRegularWidget(),
+						width: HALF,
+					},
+					{
+						Component: getRegularWidget(),
+						width: QUARTER,
+					},
+					{
+						Component: getRegularWidget(),
+						width: QUARTER,
+					},
+					{
+						Component: getRegularWidget(),
+						width: QUARTER,
+					},
+					{
+						Component: getRegularWidget(),
+						width: QUARTER,
+					},
+				]
+			),
+		{
+			decorators: [ withRegistry ],
+		}
+	);

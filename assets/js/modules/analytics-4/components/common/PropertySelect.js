@@ -17,82 +17,170 @@
  */
 
 /**
+ * External dependencies
+ */
+import classnames from 'classnames';
+import PropTypes from 'prop-types';
+
+/**
  * WordPress dependencies
  */
 import { useCallback } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _x, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
-import { Select, Option } from '../../../../material-components';
-import ProgressBar from '../../../../components/ProgressBar';
-import { STORE_NAME, PROPERTY_CREATE } from '../../datastore/constants';
-import { MODULES_ANALYTICS } from '../../../analytics/datastore/constants';
-import { isValidAccountID } from '../../../analytics/util';
+import { Option, ProgressBar, Select } from 'googlesitekit-components';
+import { useSelect, useDispatch } from 'googlesitekit-data';
+import {
+	MODULES_ANALYTICS_4,
+	PROPERTY_CREATE,
+} from '../../datastore/constants';
+import {
+	isValidAccountID,
+	isValidPropertySelection,
+} from '../../utils/validation';
 import { trackEvent } from '../../../../util';
-const { useSelect, useDispatch } = Data;
+import useViewContext from '../../../../hooks/useViewContext';
 
-export default function PropertySelect() {
-	// TODO: Update this select hook to pull accountID from the modules/analytics-4 datastore when GA4 module becomes separated from the Analytics one
-	const accountID = useSelect( ( select ) => select( MODULES_ANALYTICS ).getAccountID() );
-	const properties = useSelect( ( select ) => select( STORE_NAME ).getProperties( accountID ) || [] );
-	const propertyID = useSelect( ( select ) => select( STORE_NAME ).getPropertyID() );
-	const isLoading = useSelect( ( select ) => (
-		! select( MODULES_ANALYTICS ).hasFinishedResolution( 'getAccounts' ) ||
-		! select( STORE_NAME ).hasFinishedResolution( 'getProperties', [ accountID ] )
-	) );
+export default function PropertySelect( props ) {
+	const {
+		isDisabled,
+		hasModuleAccess,
+		className,
+		onChange = () => {},
+	} = props;
+	const accountID = useSelect( ( select ) =>
+		select( MODULES_ANALYTICS_4 ).getAccountID()
+	);
 
-	const { selectProperty } = useDispatch( STORE_NAME );
+	const properties = useSelect( ( select ) =>
+		hasModuleAccess !== false && ! isDisabled
+			? select( MODULES_ANALYTICS_4 ).getPropertySummaries( accountID ) ||
+			  []
+			: null
+	);
 
-	const onChange = useCallback( ( index, item ) => {
-		const newPropertyID = item.dataset.value;
-		if ( propertyID !== newPropertyID ) {
-			selectProperty( newPropertyID );
-			trackEvent( 'analytics_setup', 'property_change', newPropertyID );
+	const propertyID = useSelect( ( select ) =>
+		select( MODULES_ANALYTICS_4 ).getPropertyID()
+	);
+
+	const isLoading = useSelect( ( select ) => {
+		if ( isDisabled ) {
+			return false;
 		}
-	}, [ propertyID, selectProperty ] );
+
+		return (
+			select( MODULES_ANALYTICS_4 ).isLoadingPropertySummaries() ||
+			select( MODULES_ANALYTICS_4 ).isLoadingWebDataStreams( {
+				hasModuleAccess,
+			} )
+		);
+	} );
+
+	const viewContext = useViewContext();
+	const { selectProperty } = useDispatch( MODULES_ANALYTICS_4 );
+	const onPropertyChange = useCallback(
+		( index, { dataset } ) => {
+			const newPropertyID = dataset.value;
+			if ( propertyID === newPropertyID ) {
+				return;
+			}
+
+			selectProperty( newPropertyID );
+
+			trackEvent(
+				`${ viewContext }_analytics`,
+				newPropertyID === PROPERTY_CREATE
+					? 'change_property_new'
+					: 'change_property',
+				'ga4'
+			);
+
+			onChange();
+		},
+		[ onChange, propertyID, selectProperty, viewContext ]
+	);
 
 	if ( ! isValidAccountID( accountID ) ) {
 		return null;
+	} else if ( isLoading ) {
+		return <ProgressBar smallHeight={ 80 } desktopHeight={ 88 } small />;
 	}
 
-	if ( isLoading ) {
-		return <ProgressBar small />;
+	const isValidSelection =
+		propertyID === undefined || propertyID === ''
+			? true
+			: isValidPropertySelection( propertyID );
+
+	if ( hasModuleAccess === false ) {
+		return (
+			<Select
+				className={ classnames(
+					'googlesitekit-analytics-4__select-property',
+					className
+				) }
+				label={ __( 'Property', 'google-site-kit' ) }
+				value={ propertyID }
+				enhanced
+				outlined
+				disabled
+			>
+				<Option value={ propertyID }>{ propertyID }</Option>
+			</Select>
+		);
 	}
 
 	return (
 		<Select
-			className="googlesitekit-analytics__select-property"
+			className={ classnames(
+				'googlesitekit-analytics-4__select-property',
+				className,
+				{
+					'mdc-select--invalid': ! isValidSelection,
+					'googlesitekit-analytics-4__select-property--loaded':
+						! isDisabled && ! isLoading,
+				}
+			) }
 			label={ __( 'Property', 'google-site-kit' ) }
 			value={ propertyID }
-			onEnhancedChange={ onChange }
-			disabled={ ! isValidAccountID( accountID ) }
+			onEnhancedChange={ onPropertyChange }
+			disabled={ isDisabled }
 			enhanced
 			outlined
 		>
 			{ ( properties || [] )
 				.concat( {
 					_id: PROPERTY_CREATE,
-					displayName: __( 'Set up a new property', 'google-site-kit' ),
+					displayName: __(
+						'Set up a new property',
+						'google-site-kit'
+					),
 				} )
-				.map( ( { _id, displayName }, index ) => (
-					<Option
-						key={ index }
-						value={ _id }
-					>
+				.map( ( { _id, displayName } ) => (
+					<Option key={ _id } value={ _id }>
 						{ _id === PROPERTY_CREATE
 							? displayName
 							: sprintf(
-								/* translators: 1: Property name. 2: Property ID. */
-								__( '%1$s (%2$s)', 'google-site-kit' ),
-								displayName,
-								_id
-							)
-						}
+									/* translators: 1: Property name. 2: Property ID. */
+									_x(
+										'%1$s (%2$s)',
+										'Analytics property name and ID',
+										'google-site-kit'
+									),
+									displayName,
+									_id
+							  ) }
 					</Option>
 				) ) }
 		</Select>
 	);
 }
+
+PropertySelect.propTypes = {
+	isDisabled: PropTypes.bool,
+	hasModuleAccess: PropTypes.bool,
+	className: PropTypes.string,
+	onChange: PropTypes.func,
+};

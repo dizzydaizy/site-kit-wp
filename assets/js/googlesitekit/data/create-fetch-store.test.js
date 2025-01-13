@@ -20,7 +20,7 @@
  * External dependencies
  */
 import invariant from 'invariant';
-import isPlainObject from 'lodash/isPlainObject';
+import { isPlainObject } from 'lodash';
 
 /**
  * WordPress dependencies
@@ -31,13 +31,12 @@ import { createRegistry } from '@wordpress/data';
  * Internal dependencies
  */
 import API from 'googlesitekit-api';
-import {
-	subscribeUntil,
-	unsubscribeFromAll,
-} from '../../../../tests/js/utils';
+import { combineStores } from 'googlesitekit-data';
+import { subscribeUntil } from '../../../../tests/js/utils';
 import { createFetchStore } from './create-fetch-store';
+import { createErrorStore } from './create-error-store';
 
-const STORE_NAME = 'test/some-data';
+const TEST_STORE = 'test/some-data';
 const STORE_PARAMS = {
 	baseName: 'getSomeData',
 	argsToParams: ( objParam, aParam ) => {
@@ -84,25 +83,21 @@ describe( 'createFetchStore store', () => {
 		registry = createRegistry();
 
 		storeDefinition = createFetchStore( STORE_PARAMS );
-		registry.registerStore( STORE_NAME, storeDefinition );
-		dispatch = registry.dispatch( STORE_NAME );
-		store = registry.stores[ STORE_NAME ].store;
-		select = registry.select( STORE_NAME );
+		registry.registerStore( TEST_STORE, storeDefinition );
+		dispatch = registry.dispatch( TEST_STORE );
+		store = registry.stores[ TEST_STORE ].store;
+		select = registry.select( TEST_STORE );
 	} );
 
 	afterAll( () => {
 		API.setUsingCache( true );
 	} );
 
-	afterEach( () => {
-		unsubscribeFromAll( registry );
-	} );
-
 	describe( 'actions', () => {
 		it( 'includes the expected actions', () => {
 			const fetchStoreDefinition = createFetchStore( {
 				baseName: 'SaveSomeData',
-				controlCallback: async () => true,
+				controlCallback: () => true,
 			} );
 
 			expect( Object.keys( fetchStoreDefinition.actions ) ).toEqual( [
@@ -129,14 +124,17 @@ describe( 'createFetchStore store', () => {
 			it( 'yields the expected actions for an arguments error', () => {
 				const fetchStoreDefinition = createFetchStore( {
 					baseName: 'SaveSomeData',
-					controlCallback: async () => true,
+					controlCallback: () => true,
 					argsToParams: ( requiredParam ) => {
 						return {
 							requiredParam,
 						};
 					},
 					validateParams: ( { requiredParam } = {} ) => {
-						invariant( requiredParam, 'requiredParam is required.' );
+						invariant(
+							requiredParam,
+							'requiredParam is required.'
+						);
 					},
 				} );
 
@@ -148,16 +146,24 @@ describe( 'createFetchStore store', () => {
 			it( 'yields the expected actions for a success request', () => {
 				const fetchStoreDefinition = createFetchStore( {
 					baseName: 'SaveSomeData',
-					controlCallback: async () => true,
+					controlCallback: () => true,
 				} );
 
 				const action = fetchStoreDefinition.actions.fetchSaveSomeData();
 
-				expect( action.next().value.type ).toEqual( 'START_FETCH_SAVE_SOME_DATA' );
+				expect( action.next().value.type ).toEqual(
+					'START_FETCH_SAVE_SOME_DATA'
+				);
 				expect( action.next().value.type ).toEqual( 'CLEAR_ERROR' );
-				expect( action.next().value.type ).toEqual( 'FETCH_SAVE_SOME_DATA' );
-				expect( action.next( 42 ).value.type ).toEqual( 'RECEIVE_SAVE_SOME_DATA' );
-				expect( action.next().value.type ).toEqual( 'FINISH_FETCH_SAVE_SOME_DATA' );
+				expect( action.next().value.type ).toEqual(
+					'FETCH_SAVE_SOME_DATA'
+				);
+				expect( action.next( 42 ).value.type ).toEqual(
+					'RECEIVE_SAVE_SOME_DATA'
+				);
+				expect( action.next().value.type ).toEqual(
+					'FINISH_FETCH_SAVE_SOME_DATA'
+				);
 				expect( action.next().value ).toEqual( {
 					response: 42,
 					error: undefined,
@@ -167,7 +173,7 @@ describe( 'createFetchStore store', () => {
 			it( 'yields the expected actions for an error request', () => {
 				const fetchStoreDefinition = createFetchStore( {
 					baseName: 'SaveSomeData',
-					controlCallback: async () => true,
+					controlCallback: () => true,
 				} );
 
 				const action = fetchStoreDefinition.actions.fetchSaveSomeData();
@@ -177,12 +183,19 @@ describe( 'createFetchStore store', () => {
 					message: 'This went wrong.',
 				};
 
-				expect( action.next().value.type ).toEqual( 'START_FETCH_SAVE_SOME_DATA' );
+				expect( action.next().value.type ).toEqual(
+					'START_FETCH_SAVE_SOME_DATA'
+				);
 				expect( action.next().value.type ).toEqual( 'CLEAR_ERROR' );
-				expect( action.next().value.type ).toEqual( 'FETCH_SAVE_SOME_DATA' );
-				expect( action.throw( error ).value.type ).toEqual( 'RECEIVE_ERROR' );
-				expect( action.next().value.type ).toEqual( 'RECEIVE_ERROR' );
-				expect( action.next().value.type ).toEqual( 'CATCH_FETCH_SAVE_SOME_DATA' );
+				expect( action.next().value.type ).toEqual(
+					'FETCH_SAVE_SOME_DATA'
+				);
+				expect( action.throw( error ).value.type ).toEqual(
+					'RECEIVE_ERROR'
+				);
+				expect( action.next().value.type ).toEqual(
+					'CATCH_FETCH_SAVE_SOME_DATA'
+				);
 				expect( action.next().value ).toEqual( {
 					response: undefined,
 					error,
@@ -192,11 +205,16 @@ describe( 'createFetchStore store', () => {
 			it( 'makes a network request based on controlCallback', async () => {
 				const expectedResponse = 'response-value';
 				fetchMock.getOnce(
-					/^\/google-site-kit\/v1\/core\/test\/data\/some-data/,
+					new RegExp(
+						'^/google-site-kit/v1/core/test/data/some-data'
+					),
 					{ body: JSON.stringify( expectedResponse ), status: 200 }
 				);
 
-				const { response, error } = await dispatch.fetchGetSomeData( {}, 'value-to-key-response-by' );
+				const { response, error } = await dispatch.fetchGetSomeData(
+					{},
+					'value-to-key-response-by'
+				);
 
 				expect( error ).toEqual( undefined );
 				expect( response ).toEqual( expectedResponse );
@@ -205,50 +223,129 @@ describe( 'createFetchStore store', () => {
 				} );
 			} );
 
-			it( 'dispatches an error if the request fails', async () => {
-				const errorResponse = {
-					code: 'internal_server_error',
-					message: 'Internal server error',
-					data: { status: 500 },
-				};
-				fetchMock.getOnce(
-					/^\/google-site-kit\/v1\/core\/test\/data\/some-data/,
-					{ body: errorResponse, status: 500 }
-				);
+			describe( 'error handling', () => {
+				beforeEach( () => {
+					registry = createRegistry();
 
-				const { response, error } = await dispatch.fetchGetSomeData( {}, 'value-to-key-response-by' );
+					storeDefinition = combineStores(
+						createFetchStore( STORE_PARAMS ),
+						createErrorStore( TEST_STORE )
+					);
+					registry.registerStore( TEST_STORE, storeDefinition );
+					dispatch = registry.dispatch( TEST_STORE );
+					store = registry.stores[ TEST_STORE ].store;
+					select = registry.select( TEST_STORE );
+				} );
 
-				expect( console ).toHaveErrored();
-				expect( error ).toEqual( errorResponse );
-				expect( response ).toEqual( undefined );
-				expect( store.getState().data ).toEqual( undefined );
+				it( 'dispatches an error if the request fails', async () => {
+					const errorResponse = {
+						code: 'internal_server_error',
+						message: 'Internal server error',
+						data: { status: 500 },
+					};
+					fetchMock.getOnce(
+						new RegExp(
+							'^/google-site-kit/v1/core/test/data/some-data'
+						),
+						{ body: errorResponse, status: 500 }
+					);
+
+					const errorArgs = [ {}, 'value-to-key-response-by' ];
+
+					const { response, error } = await dispatch.fetchGetSomeData(
+						...errorArgs
+					);
+
+					expect( console ).toHaveErrored();
+					expect( error ).toEqual( errorResponse );
+					expect( response ).toEqual( undefined );
+					expect( store.getState().data ).toEqual( undefined );
+
+					// Verify that the error is stored in the store.
+					expect(
+						select.getError( STORE_PARAMS.baseName, errorArgs )
+					).toEqual( errorResponse );
+				} );
+
+				it( 'clears previously set errors when re-fetching', async () => {
+					const errorResponse = {
+						code: 'internal_server_error',
+						message: 'Internal server error',
+						data: { status: 500 },
+					};
+					fetchMock.getOnce(
+						new RegExp(
+							'^/google-site-kit/v1/core/test/data/some-data'
+						),
+						{ body: errorResponse, status: 500 }
+					);
+
+					const errorArgs = [ {}, 'value-to-key-response-by' ];
+
+					await dispatch.fetchGetSomeData( ...errorArgs );
+
+					expect( console ).toHaveErrored();
+
+					// Verify that the error is stored in the store.
+					expect(
+						select.getError( STORE_PARAMS.baseName, errorArgs )
+					).toEqual( errorResponse );
+
+					fetchMock.getOnce(
+						new RegExp(
+							'^/google-site-kit/v1/core/test/data/some-data'
+						),
+						{
+							body: {},
+							status: 200,
+						}
+					);
+
+					await dispatch.fetchGetSomeData( ...errorArgs );
+
+					// Verify that the error has been removed from the store.
+					expect(
+						select.getError( STORE_PARAMS.baseName, errorArgs )
+					).toBeUndefined();
+				} );
 			} );
 
 			it( 'sets flag for request being in progress', async () => {
 				fetchMock.getOnce(
-					/^\/google-site-kit\/v1\/core\/test\/data\/some-data/,
+					new RegExp(
+						'^/google-site-kit/v1/core/test/data/some-data'
+					),
 					{ body: { someValue: 42 }, status: 200 }
 				);
 
 				const requestArgs = [ {}, 'aValue' ];
 
 				// Initially the request is not in progress..
-				expect( select.isFetchingGetSomeData( ...requestArgs ) ).toEqual( false );
+				expect(
+					select.isFetchingGetSomeData( ...requestArgs )
+				).toEqual( false );
 
 				dispatch.fetchGetSomeData( ...requestArgs );
 
 				// Now it should be in progress.
-				expect( select.isFetchingGetSomeData( ...requestArgs ) ).toEqual( true );
+				expect(
+					select.isFetchingGetSomeData( ...requestArgs )
+				).toEqual( true );
 
 				// A request for other arguments however is not in progress.
-				expect( select.isFetchingGetSomeData( {}, 'anotherValue' ) ).toEqual( false );
+				expect(
+					select.isFetchingGetSomeData( {}, 'anotherValue' )
+				).toEqual( false );
 
-				await subscribeUntil( registry,
-					() => store.getState().data !== undefined,
+				await subscribeUntil(
+					registry,
+					() => store.getState().data !== undefined
 				);
 
 				// As the data has been received, the request is now no longer in progress.
-				expect( select.isFetchingGetSomeData( ...requestArgs ) ).toEqual( false );
+				expect(
+					select.isFetchingGetSomeData( ...requestArgs )
+				).toEqual( false );
 			} );
 		} );
 
@@ -260,7 +357,7 @@ describe( 'createFetchStore store', () => {
 				} );
 				const fetchStoreDefinition = createFetchStore( {
 					baseName: 'SaveSomeData',
-					controlCallback: async () => true,
+					controlCallback: () => true,
 					argsToParams: ( requiredParam ) => {
 						return {
 							requiredParam,
@@ -271,13 +368,17 @@ describe( 'createFetchStore store', () => {
 				// validateParams is called once when creating the fetch store to determine if params are required.
 				expect( validateParams ).toHaveBeenCalledTimes( 1 );
 				// Called with the result of argsToParams with no args.
-				expect( validateParams ).toHaveBeenCalledWith( { requiredParam: undefined } );
+				expect( validateParams ).toHaveBeenCalledWith( {
+					requiredParam: undefined,
+				} );
 				validateParams.mockClear();
 
 				// Now that params are known to be required, an error will be thrown if not provided.
 				expect( () => {
 					const response = {};
-					fetchStoreDefinition.actions.receiveSaveSomeData( response );
+					fetchStoreDefinition.actions.receiveSaveSomeData(
+						response
+					);
 				} ).toThrow( 'params is required.' );
 				expect( validateParams ).not.toHaveBeenCalled();
 
@@ -285,18 +386,23 @@ describe( 'createFetchStore store', () => {
 				expect( () => {
 					const response = {};
 					const params = {};
-					fetchStoreDefinition.actions.receiveSaveSomeData( response, params );
+					fetchStoreDefinition.actions.receiveSaveSomeData(
+						response,
+						params
+					);
 				} ).not.toThrow();
 				// It only doesn't throw here because our mock function does not, but normally it would.
 				expect( validateParams ).toHaveBeenCalledTimes( 1 );
-				expect( validateParams ).toHaveBeenCalledWith( { requiredParam: undefined } );
+				expect( validateParams ).toHaveBeenCalledWith( {
+					requiredParam: undefined,
+				} );
 			} );
 
 			it( 'does not require params if validateParams does not throw', () => {
 				const validateParams = jest.fn();
 				const fetchStoreDefinition = createFetchStore( {
 					baseName: 'SaveSomeData',
-					controlCallback: async () => true,
+					controlCallback: () => true,
 					reducerCallback: ( state ) => state,
 					argsToParams: () => ( {} ),
 					validateParams,
@@ -306,7 +412,9 @@ describe( 'createFetchStore store', () => {
 
 				expect( () => {
 					const response = {};
-					fetchStoreDefinition.actions.receiveSaveSomeData( response );
+					fetchStoreDefinition.actions.receiveSaveSomeData(
+						response
+					);
 				} ).not.toThrow( 'params is required.' );
 			} );
 		} );
@@ -316,7 +424,7 @@ describe( 'createFetchStore store', () => {
 		it( 'includes the expected selectors', () => {
 			const fetchStoreDefinition = createFetchStore( {
 				baseName: 'SaveSomeData',
-				controlCallback: async () => true,
+				controlCallback: () => true,
 			} );
 
 			expect( Object.keys( fetchStoreDefinition.selectors ) ).toEqual( [

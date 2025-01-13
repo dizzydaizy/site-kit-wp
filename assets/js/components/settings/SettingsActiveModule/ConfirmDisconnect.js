@@ -31,25 +31,51 @@ import { ESCAPE } from '@wordpress/keycodes';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
+import { useSelect, useDispatch } from 'googlesitekit-data';
+import ModalDialog from '../../ModalDialog';
 import { CORE_LOCATION } from '../../../googlesitekit/datastore/location/constants';
 import { CORE_MODULES } from '../../../googlesitekit/modules/datastore/constants';
 import { CORE_SITE } from '../../../googlesitekit/datastore/site/constants';
-import { clearWebStorage } from '../../../util';
-import Dialog from '../../Dialog';
-const { useSelect, useDispatch } = Data;
+import { CORE_UI } from '../../../googlesitekit/datastore/ui/constants';
+import { clearCache } from '../../../googlesitekit/api/cache';
+import { listFormat, trackEvent } from '../../../util';
+import useViewContext from '../../../hooks/useViewContext';
 
-export default function ConfirmDisconnect( { slug, handleDialog } ) {
+export default function ConfirmDisconnect( { slug } ) {
+	const viewContext = useViewContext();
+
 	const [ isDeactivating, setIsDeactivating ] = useState( false );
+	const { setValue } = useDispatch( CORE_UI );
 
-	const dependentModules = useSelect( ( select ) => select( CORE_MODULES ).getModuleDependantNames( slug ) );
-	const provides = useSelect( ( select ) => select( CORE_MODULES ).getModuleFeatures( slug ) );
-	const module = useSelect( ( select ) => select( CORE_MODULES ).getModule( slug ) );
-	const dashboardURL = useSelect( ( select ) => select( CORE_SITE ).getAdminURL( 'googlesitekit-dashboard' ) );
+	const dialogActiveKey = `module-${ slug }-dialogActive`;
+
+	const dependentModules = useSelect( ( select ) =>
+		select( CORE_MODULES ).getModuleDependantNames( slug )
+	);
+	const features = useSelect( ( select ) =>
+		select( CORE_MODULES ).getModuleFeatures( slug )
+	);
+	const module = useSelect( ( select ) =>
+		select( CORE_MODULES ).getModule( slug )
+	);
+	const settingsURL = useSelect( ( select ) =>
+		select( CORE_SITE ).getAdminURL( 'googlesitekit-settings' )
+	);
+	const dialogActive = useSelect( ( select ) =>
+		select( CORE_UI ).getValue( dialogActiveKey )
+	);
+
+	const handleDialog = useCallback( () => {
+		setValue( dialogActiveKey, ! dialogActive );
+	}, [ dialogActive, dialogActiveKey, setValue ] );
 
 	useEffect( () => {
-		const onKeyPress = ( e ) => {
-			if ( ESCAPE === e.keyCode ) {
+		const onKeyPress = ( event ) => {
+			// Only trigger the `handleDialog()` code when a key is pressed and
+			// the dialog is active. Calling `handleDialog()` without `dialogActive`
+			// being truthy will cause all dialogs to appear, see
+			// https://github.com/google/site-kit-wp/issues/3707.
+			if ( ESCAPE === event.keyCode && dialogActive ) {
 				handleDialog();
 			}
 		};
@@ -58,7 +84,7 @@ export default function ConfirmDisconnect( { slug, handleDialog } ) {
 		return () => {
 			global.removeEventListener( 'keydown', onKeyPress );
 		};
-	}, [ handleDialog ] );
+	}, [ dialogActive, handleDialog ] );
 
 	const { deactivateModule } = useDispatch( CORE_MODULES );
 	const { navigateTo } = useDispatch( CORE_LOCATION );
@@ -71,15 +97,29 @@ export default function ConfirmDisconnect( { slug, handleDialog } ) {
 		const { error } = await deactivateModule( slug );
 
 		if ( ! error ) {
-			clearWebStorage();
-			navigateTo( dashboardURL );
+			await clearCache();
+
+			await trackEvent(
+				`${ viewContext }_module-list`,
+				'deactivate_module',
+				slug
+			);
+
+			navigateTo( settingsURL );
 		} else {
 			// Only set deactivating to false if there is an error.
 			setIsDeactivating( false );
 		}
-	}, [ slug, module?.forceActive, dashboardURL, deactivateModule, navigateTo ] );
+	}, [
+		slug,
+		module?.forceActive,
+		settingsURL,
+		deactivateModule,
+		navigateTo,
+		viewContext,
+	] );
 
-	if ( ! module ) {
+	if ( ! module || ! dialogActive ) {
 		return null;
 	}
 
@@ -88,32 +128,43 @@ export default function ConfirmDisconnect( { slug, handleDialog } ) {
 	const title = sprintf(
 		/* translators: %s: module name */
 		__( 'Disconnect %s from Site Kit?', 'google-site-kit' ),
-		name,
+		name
 	);
 
-	const subtitle = sprintf(
-		/* translators: %s: module name */
-		__( 'By disconnecting the %s module from Site Kit, you will no longer have access to:', 'google-site-kit' ),
-		name,
-	);
+	const hasFeatures = features?.length > 0;
+
+	const subtitle = hasFeatures
+		? sprintf(
+				/* translators: %s: module name */
+				__(
+					'By disconnecting the %s module from Site Kit, you will no longer have access to:',
+					'google-site-kit'
+				),
+				name
+		  )
+		: null;
 
 	let dependentModulesText = null;
 	if ( dependentModules.length > 0 ) {
 		dependentModulesText = sprintf(
-			/* translators: %1$s: module name, %2$s: list of dependent modules */
-			__( 'these active modules depend on %1$s and will also be disconnected: %2$s', 'google-site-kit' ),
+			/* translators: 1: module name, 2: list of dependent modules */
+			__(
+				'these active modules depend on %1$s and will also be disconnected: %2$s',
+				'google-site-kit'
+			),
 			name,
-			dependentModules,
+			listFormat( dependentModules )
 		);
 	}
 
 	return (
-		<Dialog
+		<ModalDialog
+			className="googlesitekit-settings-module__confirm-disconnect-modal"
 			dialogActive
 			handleDialog={ handleDialog }
 			title={ title }
 			subtitle={ subtitle }
-			provides={ provides }
+			provides={ features }
 			handleConfirm={ handleDisconnect }
 			dependentModules={ dependentModulesText }
 			inProgress={ isDeactivating }
@@ -124,5 +175,4 @@ export default function ConfirmDisconnect( { slug, handleDialog } ) {
 
 ConfirmDisconnect.propTypes = {
 	slug: PropTypes.string.isRequired,
-	handleDialog: PropTypes.func.isRequired,
 };

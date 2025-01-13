@@ -24,38 +24,50 @@ import PropTypes from 'prop-types';
 /**
  * Internal dependencies
  */
-import { getSiteStatsDataForGoogleChart } from '../../../util';
+import { getCurrencyPattern } from '../../../../../components/GoogleChart/utils';
+import { getSiteStatsDataForGoogleChart, isZeroReport } from '../../../util';
 import { Grid, Row, Cell } from '../../../../../material-components';
 import GoogleChart from '../../../../../components/GoogleChart';
 
-const Stats = ( {
-	metrics,
-	currentRangeData,
-	previousRangeData,
-	selectedStats,
-} ) => {
-	const colors = [
-		'#4285f4',
-		'#27bcd4',
-		'#1b9688',
-		'#673ab7',
-	];
+export default function Stats( props ) {
+	const { metrics, currentRangeData, previousRangeData, selectedStats } =
+		props;
 
-	const formats = {
-		METRIC_TALLY: undefined,
-		METRIC_CURRENCY: 'currency',
-		METRIC_RATIO: 'percent',
-		METRIC_DECIMAL: 'decimal',
-		METRIC_MILLISECONDS: undefined,
-	};
+	const dataMap = getSiteStatsDataForGoogleChart(
+		currentRangeData,
+		previousRangeData,
+		Object.values( metrics )[ selectedStats ],
+		selectedStats + 1, // Since we have the dimension in first position, then the metrics, we need the +1 offset.
+		currentRangeData.headers[ selectedStats + 1 ]
+	);
+
+	const colors = [ '#6380b8', '#4bbbbb', '#3c7251', '#8e68cb' ];
+
+	function getFormat( { type, currencyCode } = {} ) {
+		if ( type === 'METRIC_CURRENCY' ) {
+			return getCurrencyPattern( currencyCode );
+		}
+
+		const formats = {
+			METRIC_TALLY: undefined,
+			METRIC_RATIO: 'percent',
+			METRIC_DECIMAL: 'decimal',
+			METRIC_MILLISECONDS: undefined,
+		};
+
+		return formats[ type ];
+	}
+
+	const [ , ...ticks ] = dataMap.slice( 1 ).map( ( [ date ] ) => date );
 
 	const options = {
-		curveType: 'line',
+		curveType: 'function',
 		height: 270,
 		width: '100%',
 		chartArea: {
 			height: '80%',
-			width: '87%',
+			width: '100%',
+			left: 60,
 		},
 		legend: {
 			position: 'top',
@@ -65,7 +77,7 @@ const Stats = ( {
 			},
 		},
 		hAxis: {
-			format: 'M/d/yy',
+			format: 'MMM d',
 			gridlines: {
 				color: '#fff',
 			},
@@ -73,9 +85,10 @@ const Stats = ( {
 				color: '#616161',
 				fontSize: 12,
 			},
+			ticks,
 		},
 		vAxis: {
-			format: formats[ currentRangeData.headers[ selectedStats + 1 ].type ],
+			format: getFormat( currentRangeData.headers[ selectedStats + 1 ] ),
 			gridlines: {
 				color: '#eee',
 			},
@@ -90,6 +103,9 @@ const Stats = ( {
 				color: '#616161',
 				fontSize: 12,
 				italic: false,
+			},
+			viewWindow: {
+				min: 0,
 			},
 		},
 		focusTarget: 'category',
@@ -117,13 +133,14 @@ const Stats = ( {
 		},
 	};
 
-	const dataMap = getSiteStatsDataForGoogleChart(
-		currentRangeData,
-		previousRangeData,
-		Object.values( metrics )[ selectedStats ],
-		selectedStats + 1, // Since we have the dimension in first position, then the metrics, we need the +1 offset.
-		currentRangeData.headers[ selectedStats + 1 ],
-	);
+	if (
+		isZeroReport( currentRangeData, selectedStats + 1 ) &&
+		isZeroReport( previousRangeData, selectedStats + 1 )
+	) {
+		options.vAxis.viewWindow.max = 100;
+	} else {
+		options.vAxis.viewWindow.max = undefined;
+	}
 
 	return (
 		<Grid className="googlesitekit-adsense-site-stats">
@@ -140,7 +157,7 @@ const Stats = ( {
 			</Row>
 		</Grid>
 	);
-};
+}
 
 Stats.propTypes = {
 	metrics: PropTypes.object,
@@ -148,5 +165,3 @@ Stats.propTypes = {
 	previousRangeData: PropTypes.object,
 	selectedStats: PropTypes.number.isRequired,
 };
-
-export default Stats;

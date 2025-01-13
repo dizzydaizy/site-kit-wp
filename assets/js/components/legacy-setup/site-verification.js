@@ -30,16 +30,9 @@ import { Component, Fragment } from '@wordpress/element';
 /**
  * Internal dependencies
  */
-import {
-	validateJSON,
-	trackEvent,
-} from '../../util';
-import { TextField, Input } from '../../material-components';
-import data, { TYPE_MODULES } from '../data';
-import Button from '../Button';
-import ProgressBar from '../ProgressBar';
-import HelpLink from '../HelpLink';
-import withFeatureFlag from '../higherorder/withFeatureFlag';
+import API from 'googlesitekit-api';
+import { Button, ProgressBar, TextField } from 'googlesitekit-components';
+import { validateJSON, trackEvent } from '../../util';
 
 class SiteVerification extends Component {
 	constructor( props ) {
@@ -74,20 +67,34 @@ class SiteVerification extends Component {
 
 		( async () => {
 			try {
-				const { verified, identifier } = await data.get( TYPE_MODULES, 'site-verification', 'verification' );
+				const { verified, identifier } = await API.get(
+					'modules',
+					'site-verification',
+					'verification',
+					undefined,
+					{ useCache: false }
+				);
 
 				// Our current siteURL has been verified. Proceed to next step.
 				if ( verified ) {
-					await trackEvent( 'verification_setup', 'verification_check_true' );
+					await trackEvent(
+						'verification_setup',
+						'verification_check_true'
+					);
 
-					const response = await this.insertSiteVerification( identifier );
+					const response = await this.insertSiteVerification(
+						identifier
+					);
 
 					if ( true === response.verified ) {
 						this.props.siteVerificationSetup( true );
 						return true;
 					}
 				} else {
-					await trackEvent( 'verification_setup', 'verification_check_false' );
+					await trackEvent(
+						'verification_setup',
+						'verification_check_false'
+					);
 				}
 
 				this.setState( {
@@ -115,14 +122,18 @@ class SiteVerification extends Component {
 	}
 
 	async insertSiteVerification( siteURL ) {
-		return await data.set( TYPE_MODULES, 'site-verification', 'verification', { siteURL } );
+		return await API.set( 'modules', 'site-verification', 'verification', {
+			siteURL,
+		} );
 	}
 
 	async onProceed() {
 		const { setErrorMessage } = this.props;
 
 		// Try to get siteURL from state, and if blank get from the settings.
-		const siteURL = this.state.siteURL ? this.state.siteURL : global._googlesitekitLegacyData.admin.siteURL;
+		const siteURL = this.state.siteURL
+			? this.state.siteURL
+			: global._googlesitekitLegacyData.admin.siteURL;
 
 		setErrorMessage( '' );
 
@@ -161,14 +172,11 @@ class SiteVerification extends Component {
 	}
 
 	renderForm() {
-		const { helpVisibilityEnabled } = this.props;
 		const { loading, loadingMsg, siteURL } = this.state;
 
 		const loadingDiv = (
 			<Fragment>
-				{ loadingMsg &&
-					<p>{ loadingMsg }</p>
-				}
+				{ loadingMsg && <p>{ loadingMsg }</p> }
 				<ProgressBar />
 			</Fragment>
 		);
@@ -184,18 +192,14 @@ class SiteVerification extends Component {
 					<TextField
 						label={ __( 'Website Address', 'google-site-kit' ) }
 						name="siteProperty"
-						floatingLabelClassName="mdc-floating-label--float-above"
 						outlined
-						disabled
-					>
-						<Input
-							value={ siteURL }
-						/>
-					</TextField>
+						value={ siteURL }
+					/>
 				</div>
 				<div className="googlesitekit-wizard-step__action googlesitekit-wizard-step__action--justify">
-					<Button onClick={ this.onProceed }>{ __( 'Continue', 'google-site-kit' ) }</Button>
-					{ ! helpVisibilityEnabled && <HelpLink /> }
+					<Button onClick={ this.onProceed }>
+						{ __( 'Continue', 'google-site-kit' ) }
+					</Button>
 				</div>
 			</Fragment>
 		);
@@ -204,14 +208,21 @@ class SiteVerification extends Component {
 	static renderSetupDone() {
 		return (
 			<Fragment>
-				<h2 className="
+				<h2
+					className="
 					googlesitekit-heading-3
 					googlesitekit-wizard-step__title
-				">
+				"
+				>
 					{ __( 'Verify URL', 'google-site-kit' ) }
 				</h2>
 
-				<p className="googlesitekit-wizard-step__text">{ __( 'Congratulations, your site has been verified!', 'google-site-kit' ) }</p>
+				<p className="googlesitekit-wizard-step__text">
+					{ __(
+						'Congratulations, your site has been verified!',
+						'google-site-kit'
+					) }
+				</p>
 			</Fragment>
 		);
 	}
@@ -226,31 +237,33 @@ class SiteVerification extends Component {
 
 		return (
 			<Fragment>
-				<h2 className="
+				<h2
+					className="
 					googlesitekit-heading-3
 					googlesitekit-wizard-step__title
-				">
+				"
+				>
 					{ __( 'Verify URL', 'google-site-kit' ) }
 				</h2>
 
-				<p className="googlesitekit-wizard-step__text">{ __( 'We will need to verify your URL for Site Kit.', 'google-site-kit' ) }</p>
+				<p className="googlesitekit-wizard-step__text">
+					{ __(
+						'We will need to verify your URL for Site Kit.',
+						'google-site-kit'
+					) }
+				</p>
 
-				{
-					errorMsg && 0 < errorMsg.length &&
-					<p className="googlesitekit-error-text">
-						{ errorMsg }
-					</p>
-				}
+				{ errorMsg && 0 < errorMsg.length && (
+					<p className="googlesitekit-error-text">{ errorMsg }</p>
+				) }
 
 				{ isAuthenticated && this.renderForm() }
-
 			</Fragment>
 		);
 	}
 }
 
 SiteVerification.propTypes = {
-	helpVisibilityEnabled: PropTypes.bool,
 	isAuthenticated: PropTypes.bool.isRequired,
 	shouldSetup: PropTypes.bool.isRequired,
 	siteVerificationSetup: PropTypes.func.isRequired,
@@ -258,4 +271,4 @@ SiteVerification.propTypes = {
 	setErrorMessage: PropTypes.func.isRequired,
 };
 
-export default withFeatureFlag( 'helpVisibility' )( SiteVerification );
+export default SiteVerification;

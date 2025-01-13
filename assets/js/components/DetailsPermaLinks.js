@@ -30,25 +30,29 @@ import { Fragment } from '@wordpress/element';
 /**
  * Internal dependencies
  */
-import Data from 'googlesitekit-data';
+import { useSelect } from 'googlesitekit-data';
 import { CORE_SITE } from '../googlesitekit/datastore/site/constants';
 import Link from './Link';
 import { getFullURL } from '../util';
-const { useSelect } = Data;
 
 export default function DetailsPermaLinks( { title, path, serviceURL } ) {
-	const siteURL = useSelect( ( select ) => select( CORE_SITE ).getReferenceSiteURL() );
+	const siteURL = useSelect( ( select ) =>
+		select( CORE_SITE ).getReferenceSiteURL()
+	);
 	const permaLink = getFullURL( siteURL, path );
 	const detailsURL = useSelect( ( select ) => {
-		return select( CORE_SITE ).getAdminURL( 'googlesitekit-dashboard', { permaLink } );
+		return select( CORE_SITE ).getAdminURL( 'googlesitekit-dashboard', {
+			permaLink,
+		} );
 	} );
 
 	return (
 		<Fragment>
 			<Link
+				className="googlesitekit-font-weight-medium"
 				href={ serviceURL || detailsURL }
-				inherit
 				external={ !! serviceURL }
+				hideExternalIndicator
 			>
 				{ title }
 			</Link>
@@ -61,7 +65,6 @@ export default function DetailsPermaLinks( { title, path, serviceURL } ) {
 				href={ permaLink }
 				target="_blank" // No external styling.
 				small
-				inherit
 			>
 				{ path }
 			</Link>
